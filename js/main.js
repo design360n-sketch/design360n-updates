@@ -1,6 +1,6 @@
-/* Design360n v2.75 — CEP panel wiring. Full Photoshop control via ExtendScript (evalScript). */
+/* Design360n v2.76 — CEP panel wiring. Full Photoshop control via ExtendScript (evalScript). */
 (function () {
-  var PANEL_VERSION = "2.75";
+  var PANEL_VERSION = "2.76";
   var cs = new CSInterface();
   var $ = function (id) { return document.getElementById(id); };
 
