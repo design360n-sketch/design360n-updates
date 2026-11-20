@@ -1,0 +1,16 @@
+{
+  "version": "2.75",
+  "notes": "Auto-update via GitHub added; license server connected; version-mismatch fix",
+  "baseUrl": "https://raw.githubusercontent.com/design360n-sketch/design360n-updates/main/",
+  "downloadUrl": "https://github.com/design360n-sketch/design360n-updates/releases/latest",
+  "files": [
+    "index.html",
+    "css/styles.css",
+    "js/main.js",
+    "js/textfx100.js",
+    "js/textfx120.js",
+    "js/gradients.js",
+    "js/CSInterface.js",
+    "jsx/Design360nCEP.jsx"
+  ]
+}

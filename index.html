@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Design360n</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="wallpaper"></div>
+  <div class="app">
+  <!-- LICENSE LOGIN GATE (v2.75) -->
+  <div id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <div class="auth-logo">D3</div>
+      <div class="auth-title">Design360n Studio Pro</div>
+      <div class="auth-sub">Enter your License Key to unlock all 18+ Pro Tools</div>
+      <label class="lbl" style="margin-top:12px;">License Key</label>
+      <input id="licKeyInput" type="text" placeholder="D360-XXXX-XXXX" autocomplete="off" style="text-transform:uppercase;letter-spacing:1px;font-weight:700;">
+      <button id="licActivateBtn" class="primary" style="margin-top:10px;">Activate License</button>
+      <div id="licMsg" class="auth-msg"></div>
+      <div class="auth-dev">Device ID: <span id="licDevId">Detecting...</span></div>
+      <div id="licDemoHint" class="auth-hint" style="display:none;">Setup mode: Paste your Google Apps Script URL in <b>js/main.js</b> (or test with <b>D360-DEMO-TEST</b>).</div>
+    </div>
+  </div>
+
+    <header class="top">
+      <div class="logo">D3</div>
+      <div>
+        <div class="name">Design360n</div>
+        <div class="sub" id="versionLabel">Studio Pro • v2.75</div>
+      </div>
+      <button type="button" class="license-chip" id="licChip" title="Click to manage or deactivate license"><span class="dot"></span> <span id="licChipText">Locked</span></button>Free • Active</span>
+    </header>
+
+    <!-- AUTO-UPDATE BANNER (v2.75) -->
+    <div id="updBanner" class="upd-banner" style="display:none;">
+      <div class="upd-text"><strong>Update Available: <span id="updVer"></span></strong><span id="updNotes"></span></div>
+      <div class="upd-actions"><button id="updNowBtn" class="primary upd-btn" type="button">Update Now</button><button id="updDismissBtn" class="secondary upd-btn" type="button">Later</button></div>
+    </div>
+
+    <!-- HOME -->
+    <main class="scroll" id="homeView">
+      <div class="hero">
+        <div class="hero-title">Design360n</div>
+        <div class="hero-sub">Glow, Social/Print Sizes, BG Remover, Glass, Gradients &amp; 155 Photoshop Styles — ek-i panel-e.</div>
+      </div>
+      <div class="search-wrap"><input id="homeSearch" type="text" placeholder="Search 18 tools (3D text, upscale, animate, glow)..."></div>
+      <button id="updCheckBtn" class="secondary upd-check" type="button">↻ Check for Updates</button>
+
+      <div class="cat-sec" data-catsec>
+        <div class="cat-head"><span class="cat-dot cyan"></span>AI &amp; Motion Studio</div>
+        <section class="cards">
+          <button class="card" data-open="sizes">
+          <span class="card-icon sizes"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h3M7 9v3M17 15h-3M17 15v-3"/></svg></span>
+          <span class="card-text"><span class="card-name">Social &amp; Print Sizes <em>NEW</em></span><span class="card-desc">Facebook, Instagram, YouTube + 300 DPI Print sizes.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="animate">
+          <span class="card-icon animate"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3V9z"/><path d="M2 8h20"/></svg></span>
+          <span class="card-text"><span class="card-name">Poster Animator <em>1-CLICK</em></span><span class="card-desc">Text animation, Hero/Character float + CC Light Sweep + auto Layer Breakdown.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="upscale">
+          <span class="card-icon upscale"><svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/><path d="M12 6l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg></span>
+          <span class="card-text"><span class="card-name">AI &amp; Pro Upscaler <em>NEW</em></span><span class="card-desc">2× / 3× / 4× Neural Preserve Details 2.0 + Micro-Detail Sharpen + Gemini AI Enhance!</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="expand">
+          <span class="card-icon expand"><svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><polyline points="21 15 21 21 15 21"/><polyline points="3 9 3 3 9 3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg></span>
+          <span class="card-text"><span class="card-name">Photo Expand <em>NEW</em></span><span class="card-desc">Chobi boro korun — mirror, blur fill ba solid colour-e.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="glow">
+          <span class="card-icon glow"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg></span>
+          <span class="card-text"><span class="card-name">Glow Up</span><span class="card-desc">Alo, streak ar light ray — ek click-e cinematic glow.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+        </section>
+      </div>
+
+      <div class="cat-sec" data-catsec>
+        <div class="cat-head"><span class="cat-dot amber"></span>3D Text, Glass &amp; Styles</div>
+        <section class="cards">
+          <button class="card" data-open="textfx">
+          <span class="card-icon textfx"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span>
+          <span class="card-text"><span class="card-name">Text Effects <em>155+</em></span><span class="card-desc">155+ 100% live editable 3D & Glow text effects — direct Type Tool edit!</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="styles">
+          <span class="card-icon styles"><svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg></span>
+          <span class="card-text"><span class="card-name">PS Styles &amp; Text FX <em>155+</em></span><span class="card-desc">Photoshop Default Styles + 137 editable Layer Styles (Gold, Neon, 3D, Comic, Retro, Emon).</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="glass">
+          <span class="card-icon glass"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 10l4-4M10 16l6-6"/></svg></span>
+          <span class="card-text"><span class="card-name">Glass <em>NEW</em></span><span class="card-desc">Jekono shape-ke live glass banan — Liquid / Frosted / Clear / Figma.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="gradient">
+          <span class="card-icon gradient"><svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/><path d="M12 2.69V21"/></svg></span>
+          <span class="card-text"><span class="card-name">Gradient Presets <em>NEW</em></span><span class="card-desc">64 ta best gradient — shape, text ba notun Background hisebe 1 click-e.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+        </section>
+      </div>
+
+      <div class="cat-sec" data-catsec>
+        <div class="cat-head"><span class="cat-dot emerald"></span>Photo Retouch &amp; Color</div>
+        <section class="cards">
+          <button class="card" data-open="cut">
+          <span class="card-icon cut"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg></span>
+          <span class="card-text"><span class="card-name">Background Remover</span><span class="card-desc">AI Auto Cut (jekono BG) + Solid Color Cut + Shadow Cut.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="grade">
+          <span class="card-icon grade"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18V3z"/><circle cx="15.5" cy="9.5" r="1.5"/></svg></span>
+          <span class="card-text"><span class="card-name">Color Grading <em>NEW</em></span><span class="card-desc">Cinematic, Vintage, Moody, Golden Hour, B&amp;W, Cyberpunk — 6 ta look.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="retouch">
+          <span class="card-icon retouch"><svg viewBox="0 0 24 24"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5"/></svg></span>
+          <span class="card-text"><span class="card-name">Skin Retouch <em>NEW</em></span><span class="card-desc">Norom skin smooth + High Pass detail — alada layer-e.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="dodge">
+          <span class="card-icon dodge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 8l5 4-5 4"/></svg></span>
+          <span class="card-text"><span class="card-name">Dodge &amp; Burn <em>NEW</em></span><span class="card-desc">Alo-chhaya sculpt korar 2 ta 50% gray layer ek click-e.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="vignette">
+          <span class="card-icon vignette"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="12" r="4"/></svg></span>
+          <span class="card-text"><span class="card-name">Vignette <em>NEW</em></span><span class="card-desc">Kinara garo kore chobi-r majhkhane focus anen.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+        </section>
+      </div>
+
+      <div class="cat-sec" data-catsec>
+        <div class="cat-head"><span class="cat-dot violet"></span>Export, Assets &amp; Quick Tools</div>
+        <section class="cards">
+          <button class="card" data-open="watermark">
+          <span class="card-icon watermark"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span>
+          <span class="card-text"><span class="card-name">Watermark <em>NEW</em></span><span class="card-desc">Full canvas diagonal tiled watermark — ek click-e puro chobi-te!</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="export">
+          <span class="card-icon export"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+          <span class="card-text"><span class="card-name">Batch Export <em>NEW</em></span><span class="card-desc">Ek click-e 6 ta social size-e JPG export korun.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="assets">
+          <span class="card-icon assets"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+          <span class="card-text"><span class="card-name">Free PNG, Icons &amp; Fonts <em>NEW</em></span><span class="card-desc">Flaticon, PNGWing, Freepik, Unsplash, Lipighor (Bangla) — 1-click search!</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+          <button class="card" data-open="utils">
+          <span class="card-icon utils"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+          <span class="card-text"><span class="card-name">Quick Designer Tools <em>NEW</em></span><span class="card-desc">Center Layer, Fit Canvas, Place PNG, Quick PNG Export, Color Palette.</span></span>
+          <span class="card-arrow">›</span>
+        </button>
+        </section>
+      </div>
+      <div class="madeby">
+        <span>Free alternative — kono login, license key ba trial lage na.</span>
+      </div>
+    </main>
+
+    <!-- GLOW -->
+    <main class="scroll toolview" id="view-glow">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon glow"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg></span><div><div class="tool-name">Glow Up</div><div class="tool-sub">Cinematic glow, streaks, rays</div></div></div>
+      <div class="pilltabs" id="glowTabs">
+        <button type="button" class="pill active" data-gtab="glow">Glow</button>
+        <button type="button" class="pill" data-gtab="streaks">Streaks</button>
+        <button type="button" class="pill" data-gtab="fx">FX</button>
+        <button type="button" class="pill" data-gtab="output">Output</button>
+        <button type="button" class="pill" data-gtab="mask">Mask</button>
+      </div>
+      <label class="lbl">Look beche nin</label>
+      <select id="glowPreset"></select>
+      <div id="presetDesc" class="preset-desc"></div>
+      <div class="looks-grid" id="looksGrid"></div>
+
+      <div class="controls">
+        <div class="glow-tabpane active" id="gtab-glow">
+          <div class="ctl-head">Glow — Threshold, Exposure, Radius, Colour</div>
+          <label class="lbl">Threshold <span id="v-gthr">50</span>%</label>
+          <input id="gthr" type="range" min="0" max="100" step="1" value="50">
+          <label class="lbl">Exposure (alo kotota ujjol) <span id="v-gexp">-0.5</span></label>
+          <input id="gexp" type="range" min="-2.5" max="2" step="0.1" value="-0.5">
+          <label class="lbl">Radius <span id="v-grad">1000</span></label>
+          <input id="grad" type="range" min="50" max="1200" step="10" value="1000">
+          <label class="lbl">Core (vetorer alo) <span id="v-gcore">200</span></label>
+          <input id="gcore" type="range" min="0" max="200" step="5" value="200">
+          <label class="lbl">Iterations (blur passes) <span id="v-giter">11</span></label>
+          <input id="giter" type="range" min="3" max="12" step="1" value="11">
+          <label class="lbl">Gamma <span id="v-ggamma">1.2</span></label>
+          <input id="ggamma" type="range" min="0.5" max="2" step="0.1" value="1.2">
+          <label class="lbl">Colour Hue <span id="v-ghue">0</span></label>
+          <input id="ghue" type="range" min="-180" max="180" step="1" value="0">
+          <label class="lbl">Colour Saturation <span id="v-gsat">100</span>%</label>
+          <input id="gsat" type="range" min="0" max="200" step="5" value="100">
+        </div>
+
+        <div class="glow-tabpane" id="gtab-streaks">
+          <div class="ctl-head">Streaks — Angle, Length, Intensity</div>
+          <label class="check"><input type="checkbox" id="gstreak"> Enable Streaks</label>
+          <label class="lbl">Streak Angle <span id="v-gsang">0</span>°</label>
+          <input id="gsang" type="range" min="-90" max="90" step="1" value="0">
+          <label class="lbl">Streak Length <span id="v-gslen">900</span></label>
+          <input id="gslen" type="range" min="100" max="2400" step="50" value="900">
+          <label class="lbl">Streak Intensity <span id="v-gsint">60</span>%</label>
+          <input id="gsint" type="range" min="5" max="100" step="5" value="60">
+        </div>
+
+        <div class="glow-tabpane" id="gtab-fx">
+          <div class="ctl-head">FX — Light Rays &amp; Chromatic Aberration</div>
+          <label class="check"><input type="checkbox" id="grays"> Light Rays (Radial Zoom)</label>
+          <label class="check"><input type="checkbox" id="gaber"> Chromatic Aberration (R/B shift)</label>
+          <label class="lbl">Aberration Distance <span id="v-gadist">20</span> px</label>
+          <input id="gadist" type="range" min="2" max="60" step="1" value="20">
+        </div>
+
+        <div class="glow-tabpane" id="gtab-output">
+          <div class="ctl-head">Output — Layer &amp; Blend Mode</div>
+          <label class="lbl">Blend Mode</label>
+          <select id="gblend"><option value="screen">Screen</option><option value="add">Add (Linear Dodge)</option></select>
+          <label class="lbl">Opacity <span id="v-gop">100</span>%</label>
+          <input id="gop" type="range" min="10" max="100" step="5" value="100">
+          <p class="hint small">Result lands on a separate layer named <b>Glow Up 1</b> in Screen or Add (Linear Dodge) blend.</p>
+        </div>
+
+        <div class="glow-tabpane" id="gtab-mask">
+          <div class="ctl-head">Mask — Non-destructive Glow Mask</div>
+          <label class="check"><input type="checkbox" id="gmask" checked> Add editable Reveal-All Layer Mask to Glow Up 1</label>
+          <p class="hint small">Mask thakle kalo brush diye je jaygay glow dorkar nei sekhane muche dite parben.</p>
+        </div>
+      </div>
+
+      <button id="applyGlow" class="primary">✦ Apply Glow</button>
+      <p class="hint small">Glow alada <b>Glow Up 1</b> layer-e bosbe (Screen / Add blend).</p>
+    </main>
+
+    <!-- SIZES -->
+    <main class="scroll toolview" id="view-sizes">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon sizes"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h3M7 9v3M17 15h-3M17 15v-3"/></svg></span><div><div class="tool-name">Social &amp; Print Sizes</div><div class="tool-sub">Ek click-e sothik size</div></div></div>
+      <div class="pilltabs"><span class="pill active">Sizes</span></div>
+      <label class="lbl">Social size beche nin</label>
+      <select id="sizePreset"></select>
+      <label class="check"><input type="checkbox" id="safeGuides" checked> Safe margin guides (10%) + center grid</label>
+      <div class="row2">
+        <button id="newDoc" class="primary">＋ New Document</button>
+        <button id="resizeDoc" class="secondary">Resize Current</button>
+      </div>
+      <div class="section-title">Printing Sizes — 300 DPI</div>
+      <label class="lbl">Print size beche nin</label>
+      <select id="printPreset"></select>
+      <div class="row2">
+        <button id="printNew" class="primary">＋ New Print Doc</button>
+        <button id="printResize" class="secondary">Resize (Print)</button>
+      </div>
+      <p class="hint small">Print: A4 / A3 / A5 / Letter / Legal / Tabloid / Photo / Business Card — sob 300 DPI-te.</p>
+    </main>
+
+    <!-- CUT -->
+    <main class="scroll toolview" id="view-cut">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon cut"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg></span><div><div class="tool-name">Background Remover</div><div class="tool-sub">AI Cut • Solid Color Cut • Shadow Cut</div></div></div>
+      <p class="hint"><b>AI Auto Cut</b> jekono photo-r (complex ba solid BG) background remove kore editable Layer Mask banay. Solid background hole <b>Color Auto Cut</b> ba <b>Shadow Cut</b> use korun. Sob khetre original layer <b>okkhoto (hidden)</b> thakbe.</p>
+      <button id="aiCut" class="primary">✨ AI Auto Cut — Any Background (Best)</button>
+      <div class="section-title">Solid Background &amp; Shadow Cut</div>
+      <label class="check"><input type="checkbox" id="bgAutoDetect" checked> Auto-detect background colour (4 corners)</label>
+      <label class="check"><input type="checkbox" id="bgContiguous" checked> Edges Only (Contiguous — subject-er vitorer rong katbe na)</label>
+      <label class="lbl">Manual Background Colour <span id="v-bghex">#FFFFFF</span></label>
+      <div class="colorrow"><input id="bgColor" type="color" value="#ffffff"><input id="bgHex" type="text" value="#FFFFFF" maxlength="7"></div>
+      <div class="swatches" id="bgSwatches">
+        <button type="button" class="swatch" data-hex="#FFFFFF" style="background:#FFFFFF" title="White #FFFFFF"></button>
+        <button type="button" class="swatch" data-hex="#000000" style="background:#000000" title="Black #000000"></button>
+        <button type="button" class="swatch" data-hex="#00FF00" style="background:#00FF00" title="Green Screen #00FF00"></button>
+        <button type="button" class="swatch" data-hex="#0000FF" style="background:#0000FF" title="Blue Screen #0000FF"></button>
+        <button type="button" class="swatch" data-hex="#E5E7EB" style="background:#E5E7EB" title="Light Gray #E5E7EB"></button>
+        <button type="button" class="swatch" data-hex="#F3F4F6" style="background:#F3F4F6" title="Studio Gray #F3F4F6"></button>
+      </div>
+      <label class="lbl">Shadow strength (Shadow Cut-er jonno)</label>
+      <select id="shadowStrength"><option value="soft">Soft — beshi shadow thakbe</option><option value="normal" selected>Normal</option><option value="strong">Strong — shadow garo thakbe</option></select>
+      <label class="lbl">Tolerance <span id="v-tolerance">32</span></label>
+      <input id="tolerance" type="range" min="5" max="120" step="1" value="32">
+      <label class="lbl">Feather (kinara norom) <span id="v-cutfeather">2</span> px</label>
+      <input id="cutfeather" type="range" min="0" max="10" step="1" value="2">
+      <button id="autoCut" class="secondary">✂ Color Auto Cut — Solid BG</button>
+      <button id="shadowCut" class="secondary">◐ Shadow Cut — shadow rekhe</button>
+    </main>
+
+    <!-- GLASS -->
+    <main class="scroll toolview" id="view-glass">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon glass"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 10l4-4M10 16l6-6"/></svg></span><div><div class="tool-name">Glass</div><div class="tool-sub">Live glass effect</div></div></div>
+      <div class="pilltabs"><span class="pill active">Glass</span></div>
+      <p class="hint">Shape layer select kore <b>1-Click Shape to Glass</b> chapun — ek click-ei <b>"Glass"</b> layer + Layer Mask toiri hobe. Preset chip-e click korleo 1 click-e apply/update hobe, ar sob control niche thakbe.</p>
+      <button id="oneClickGlass" class="primary">◌ 1-Click Shape to Glass</button>
+      <div class="glass-presets-grid">
+        <button class="chip sel" data-look="liquid">💧 Liquid</button>
+        <button class="chip" data-look="frosted">❄ Frosted</button>
+        <button class="chip" data-look="clear">◇ Clear</button>
+        <button class="chip" data-look="figma">▣ Figma Glass</button>
+        <button class="chip" data-look="vision"> VisionOS</button>
+        <button class="chip" data-look="prism">✦ Crystal Prism</button>
+        <button class="chip" data-look="smoke">◐ Dark Smoke</button>
+        <button class="chip" data-look="ice">❖ Ice Blue</button>
+        <button class="chip" data-look="rose">✿ Rose Quartz</button>
+        <button class="chip" data-look="amber">☀ Amber Gold</button>
+      </div>
+      <label class="check"><input type="checkbox" id="glassAutoApply" checked> Live Auto-Update (preset/slider change korlei update hobe)</label>
+      <label class="check"><input type="checkbox" id="glassAutoMove" checked> Auto-Track Move (Glass layer soralei notun jaygar background auto update hobe)</label>
+      <div class="controls">
+        <div class="ctl-head">All Glass Controls</div>
+        <label class="lbl">Frost (blur) <span id="v-frost">25</span></label>
+        <input id="frost" type="range" min="0" max="100" step="1" value="25">
+        <label class="lbl">Refraction (alo benke jawa) <span id="v-glassrefr">80</span></label>
+        <input id="glassrefr" type="range" min="0" max="100" step="1" value="80">
+        <label class="lbl">Depth (govirota) <span id="v-glassdepth">60</span></label>
+        <input id="glassdepth" type="range" min="0" max="100" step="1" value="60">
+        <label class="lbl">Dispersion (rong-er vangon) <span id="v-glassdisp">45</span></label>
+        <input id="glassdisp" type="range" min="0" max="100" step="1" value="45">
+        <label class="lbl">Light (rim alo) <span id="v-glasslight">80</span></label>
+        <input id="glasslight" type="range" min="0" max="100" step="1" value="80">
+        <label class="lbl">Light angle <span id="v-glassangle">144</span>°</label>
+        <input id="glassangle" type="range" min="0" max="360" step="1" value="144">
+        <label class="lbl">Glass tint opacity <span id="v-glasstint">7</span>%</label>
+        <input id="glasstint" type="range" min="0" max="50" step="1" value="7">
+        <label class="lbl">Glass tint colour <span id="v-glasstintcol">#FFFFFF</span></label>
+        <div class="colorrow"><input id="glasstintcol" type="color" value="#ffffff"><input id="glasstintcolHex" type="text" value="#FFFFFF" maxlength="7"></div>
+        <label class="lbl">Stroke width <span id="v-glassstroke">3</span> px</label>
+        <input id="glassstroke" type="range" min="0" max="10" step="1" value="3">
+        <label class="lbl">Stroke opacity <span id="v-glassstrokeop">90</span>%</label>
+        <input id="glassstrokeop" type="range" min="0" max="100" step="5" value="90">
+        <label class="lbl">Stroke colour <span id="v-glasscolor">#FFFFFF</span></label>
+        <div class="colorrow"><input id="glasscolor" type="color" value="#ffffff"><input id="glasscolorHex" type="text" value="#FFFFFF" maxlength="7"></div>
+        <label class="lbl">Stroke kon dike thakbe</label>
+        <div class="checkrow">
+          <label class="check"><input type="checkbox" id="strokeTop" checked> Top</label>
+          <label class="check"><input type="checkbox" id="strokeRight" checked> Right</label>
+          <label class="check"><input type="checkbox" id="strokeBottom" checked> Bottom</label>
+          <label class="check"><input type="checkbox" id="strokeLeft" checked> Left</label>
+        </div>
+        <label class="lbl">Stroke style</label>
+        <select id="strokeMode"><option value="solid" selected>Solid — sob dike soman</option><option value="follow">Follow light — alo-r dik ujjol</option></select>
+      </div>
+      <div class="row2">
+        <button id="makeShapeGlass" class="secondary">◌ Shape to Glass</button>
+        <button id="makeGlass" class="secondary">◍ Selection Glass</button>
+      </div>
+      <button id="refreshGlass" class="secondary">↻ Refresh Glass — shape sorale/slider bodlale</button>
+    </main>
+
+    <!-- GRADE -->
+    <main class="scroll toolview" id="view-grade">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon grade"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18V3z"/><circle cx="15.5" cy="9.5" r="1.5"/></svg></span><div><div class="tool-name">Color Grading</div><div class="tool-sub">Ek click-e film-er moto rong</div></div></div>
+      <label class="lbl">Grade Look</label>
+      <select id="gradePreset"></select>
+      <div id="gradeDesc" class="preset-desc"></div>
+      <label class="lbl">Grade opacity <span id="v-gradeop">100</span>%</label>
+      <input id="gradeop" type="range" min="10" max="100" step="5" value="100">
+      <button id="applyGrade" class="primary">🎨 Apply Grade</button>
+    </main>
+
+    <!-- RETOUCH -->
+    <main class="scroll toolview" id="view-retouch">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon retouch"><svg viewBox="0 0 24 24"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5"/></svg></span><div><div class="tool-name">Skin Retouch</div><div class="tool-sub">Smooth skin + sharp detail</div></div></div>
+      <p class="hint">Auto face detect kore skin smooth + High Pass detail layer banay.</p>
+      <label class="lbl">Smooth (blur) <span id="v-radius">6</span> px</label>
+      <input id="radius" type="range" min="1" max="20" step="1" value="6">
+      <label class="lbl">Opacity <span id="v-smoothop">55</span>%</label>
+      <input id="smoothop" type="range" min="10" max="100" step="5" value="55">
+      <button id="applyRetouch" class="primary">✨ Auto Face Retouch</button>
+      <label class="lbl">Detail strength <span id="v-detailop">50</span>%</label>
+      <input id="detailop" type="range" min="10" max="100" step="5" value="50">
+      <button id="applyDetail" class="secondary">◈ Add Detail (High Pass)</button>
+    </main>
+
+    <!-- DODGE & BURN -->
+    <main class="scroll toolview" id="view-dodge">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon dodge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 8l5 4-5 4"/></svg></span><div><div class="tool-name">Auto Dodge &amp; Burn</div><div class="tool-sub">Image-wise auto alo-chhaya sculpt</div></div></div>
+      <p class="hint">Chobi-r nijer alo ar chhaya detect kore <b>Auto Dodge</b> (highlights) ar <b>Auto Burn</b> (shadows) Soft Light layer banabe — mask diye pore brush-eo adjust kora jabe.</p>
+      <label class="lbl">Situation / Look</label>
+      <select id="dbMode">
+        <option value="portrait" selected>Portrait / Face Sculpt (Soft &amp; Natural)</option>
+        <option value="product">Product / Food Pop (Crisp Highlights)</option>
+        <option value="dramatic">Dramatic / Cinema Poster (Deep Contrast)</option>
+        <option value="manual">Manual Only (2x Empty 50% Gray Layers)</option>
+      </select>
+      <label class="lbl">Strength <span id="v-dbstr">65</span>%</label>
+      <input id="dbstr" type="range" min="15" max="100" step="5" value="65">
+      <button id="applyDodgeBurn" class="primary">◐ Apply Auto Dodge &amp; Burn</button>
+    </main>
+
+    <!-- VIGNETTE -->
+    <main class="scroll toolview" id="view-vignette">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon vignette"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="12" r="4"/></svg></span><div><div class="tool-name">Vignette</div><div class="tool-sub">Kinara garo, majhkhane focus</div></div></div>
+      <label class="lbl">Strength <span id="v-vig">60</span>%</label>
+      <input id="vig" type="range" min="10" max="100" step="5" value="60">
+      <label class="lbl">Softness (feather) <span id="v-feather">80</span> px</label>
+      <input id="feather" type="range" min="10" max="250" step="10" value="80">
+      <button id="applyVignette" class="primary">◉ Apply Vignette</button>
+    </main>
+
+    <!-- WATERMARK -->
+    <main class="scroll toolview" id="view-watermark">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon watermark"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span><div><div class="tool-name">Watermark</div><div class="tool-sub">Full canvas tiled watermark (by default)</div></div></div>
+      <label class="lbl">Watermark text</label>
+      <input id="wmText" type="text" value="© Design360n">
+      <label class="lbl">Opacity <span id="v-wmop">40</span>%</label>
+      <input id="wmop" type="range" min="10" max="100" step="5" value="40">
+      <label class="lbl">Position on canvas</label>
+      <select id="wmPos">
+        <option value="tile_diag" selected>Full Canvas Diagonal Grid (-30°) — Pro</option>
+        <option value="tile_grid">Full Canvas Straight Grid</option>
+        <option value="br">Single: Bottom-Right</option>
+        <option value="bl">Single: Bottom-Left</option>
+        <option value="tr">Single: Top-Right</option>
+        <option value="tl">Single: Top-Left</option>
+        <option value="center">Single: Center</option>
+        <option value="diag">Single: Diagonal Center (-30°)</option>
+      </select>
+      <label class="lbl">Colour <span id="v-wmcol">#FFFFFF</span></label>
+      <div class="colorrow"><input id="wmCol" type="color" value="#ffffff"><input id="wmColHex" type="text" value="#FFFFFF" maxlength="7"></div>
+      <label class="lbl">Text size <span id="v-wmsize">Auto</span></label>
+      <input id="wmsize" type="range" min="0" max="120" step="2" value="0">
+      <button id="applyWatermark" class="primary">© Add Watermark</button>
+    </main>
+
+    <!-- BATCH EXPORT -->
+    <main class="scroll toolview" id="view-export">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon export"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span><div><div class="tool-name">Batch Export</div><div class="tool-sub">Ek design, 6 ta size</div></div></div>
+      <p class="hint">IG Post 1080×1080 • IG Portrait 1080×1350 • IG Story 1080×1920 • FB Post 1200×630 • YT Thumbnail 1280×720 • LinkedIn 1200×627</p>
+      <button id="applyExport" class="primary">⤓ Export All 6 Sizes (JPG)</button>
+    </main>
+
+    <!-- TEXT EFFECTS (Visual Style Grid UI) -->
+    <main class="scroll toolview" id="view-textfx">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon textfx"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span><div><div class="tool-name">Text Effects</div><div class="tool-sub">155 ta visual editable Layer Style</div></div></div>
+      <p class="hint">Upor thekei prottek style-er <b>colour o look</b> dekhe 1 click-e <b>Text, Shape, ba Logo</b>-te apply korun (real editable Layer Style).</p>
+      <label class="lbl">Search Text Effect</label>
+      <input id="textfxSearch" type="text" placeholder="jemon: Gold, Neon, Fire, Ice, Comic, Emon...">
+      <label class="lbl">Category</label>
+      <select id="textfxCat"></select>
+      <div class="controls">
+        <label class="lbl" style="margin-top:0">Effect strength <span id="v-textfxop">100</span>%</label>
+        <input id="textfxop" type="range" min="10" max="100" step="5" value="100">
+        <label class="check"><input type="checkbox" id="textfxSmart"> Smart Object hisebe (double-click kore text bodlan jay)</label>
+      </div>
+      <div class="row2">
+        <button id="applyTextfx" class="primary">T Apply Selected</button>
+        <button id="clearTextfxStyle" class="secondary">✕ Clear Style</button>
+      </div>
+      <div id="textfxDesc" class="preset-desc"></div>
+      <div class="section-title">Visual Text Effects — <span id="textfxCount">137</span> ta (1-Click Apply)</div>
+      <select id="textfxPreset" style="display:none"></select>
+      <div class="tfx-grid" id="textfxGrid"></div>
+    </main>
+
+    <!-- GRADIENT PRESETS -->
+    <main class="scroll toolview" id="view-gradient">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon gradient"><svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/><path d="M12 2.69V21"/></svg></span><div><div class="tool-name">Gradient Presets</div><div class="tool-sub">Shape, Text ba Background — 1 click-e</div></div></div>
+      <p class="hint">Target beche niche jekono gradient tile-e click korun — <b>Shape, Text, Photo</b>-te Gradient Overlay bosbe, ba <b>New Gradient Background</b> select korle canvas-er niche editable gradient BG layer toiri hobe!</p>
+      <label class="lbl">Kothay apply korben?</label>
+      <select id="gradTarget">
+        <option value="layer">Selected Layer (Shape / Text / Photo)</option>
+        <option value="bg">New Gradient Background Layer (BG hisebe)</option>
+        <option value="text">Text Layer (na thakle auto banabe)</option>
+      </select>
+      <label class="lbl">Gradient style</label>
+      <select id="gradStyle">
+        <option value="Lnr " selected>Linear</option>
+        <option value="Rdl ">Radial (Glow / Spotlight BG)</option>
+        <option value="Rflc">Reflected (Metallic Shine)</option>
+      </select>
+      <label class="lbl">Angle <span id="v-gradang">135</span>°</label>
+      <input id="gradang" type="range" min="0" max="360" step="5" value="135">
+      <label class="lbl">Gradient preset (<span id="gradCount">64</span> ta)</label>
+      <select id="gradPreset"></select>
+      <div id="gradDesc" class="preset-desc"></div>
+      <button id="applyGradient" class="primary">◐ Apply Selected Gradient</button>
+      <div class="section-title">Quick Gradient Grid (1-Click Apply)</div>
+      <div class="stylegrid" id="gradGrid"></div>
+    </main>
+
+    <!-- STYLES — Photoshop Styles panel-er moto -->
+    <main class="scroll toolview" id="view-styles">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon styles"><svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg></span><div><div class="tool-name">PS Styles &amp; Text FX</div><div class="tool-sub">155+ editable Photoshop Layer Styles</div></div></div>
+      <p class="hint">Jekono layer select korun (<b>Text / Shape / Photo</b>), tarpor tile-e click korun. <b>Asol editable Layer Style (Lefx)</b> bosbe — fx icon-e double-click kore sob edit kora jabe.</p>
+      <label class="lbl">Search style</label>
+      <input id="styleSearch" type="text" placeholder="jemon: Gold, Neon, Chrome, Glass, Comic, Emon...">
+      <label class="lbl">Category</label>
+      <select id="styleCat"></select>
+      <div class="row2">
+        <button id="syncPSStyles" class="primary">↻ Load PS Styles</button>
+        <button id="loadASLFile" class="secondary">＋ Import .ASL</button>
+      </div>
+      <button id="clearLayerStyle" class="secondary">✕ Clear Style from Active Layer</button>
+      <div class="section-title">Photoshop Styles Panel (Live — <span id="psLiveCount">0</span> ta)</div>
+      <div class="stylegrid" id="psLiveGrid"></div>
+      <div class="section-title">Featured — Emon (exact .asl) &amp; Gold/Teal</div>
+      <div class="stylegrid" id="psStyleGrid"></div>
+      <div class="section-title">All Editable Layer Styles — <span id="styleCount">137</span> ta</div>
+      <div class="stylegrid" id="styleGrid"></div>
+      <p class="hint small">Note: <b>Emon Yellow Orange Glow</b> is exact from Emon_Text_Style.asl; all other styles are real editable Photoshop Layer Styles (Lefx).</p>
+    </main>
+
+    <!-- PHOTO EXPAND (Advanced Realistic) -->
+    <main class="scroll toolview" id="view-expand">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon expand"><svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><polyline points="21 15 21 21 15 21"/><polyline points="3 9 3 3 9 3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg></span><div><div class="tool-name">Photo Expand Pro</div><div class="tool-sub">Content-Aware Realistic • Direction • Selection</div></div></div>
+      <p class="hint"><b>Content-Aware Realistic</b> Photoshop-er native fill diye seam charai natural sky/floor/wall baray. Kono area <b>Marquee select</b> kore <b>Mirror/Selection</b> mode dile oi area-tai source hobe!</p>
+      <label class="lbl">Generative Prompt (optional — khali rakhle auto seamless fill)</label>
+      <input id="genPrompt" type="text" placeholder="jemon: dark green textured table, sunset sky, remove object...">
+      <button id="fillEmptyCanvas" class="primary">✨ Fill Empty Sides on This Canvas (Extreme Realistic)</button>
+      <div class="row2">
+        <button id="genFillSel" class="secondary">⚡ Gen Fill Selection</button>
+        <button id="genRemoveObj" class="secondary">🧹 Remove Object</button>
+      </div>
+      <div class="controls">
+        <div class="ctl-head">✨ Gemini AI Extreme Expand / Fill (Optional API Key)</div>
+        <label class="lbl" style="margin-top:4px">Gemini API Key (saved locally in panel)</label>
+        <input id="geminiApiKey" type="password" placeholder="Paste Gemini / Vertex API key (AIza... or AQ...)">
+        <div class="row2">
+          <button id="runGeminiFill" class="primary">✨ Gemini AI Expand / Fill</button>
+          <button id="getGeminiKey" class="secondary">🔑 Get Free Key</button>
+        </div>
+      </div>
+      <div class="section-title">Or Enlarge Canvas Size</div>
+      <label class="lbl">Fill Engine (Way)</label>
+      <select id="expandMode">
+        <option value="0" selected>✨ Subject-Protected Realistic Expand (Best Offline)</option>
+        <option value="5">⚡ Adobe Generative Expand (Firefly Online)</option>
+        <option value="1">⧉ Natural Mirror / Selection-Source Tile</option>
+        <option value="2">◌ Studio Ambient Blur Fill (Reels/Story)</option>
+        <option value="3">⤢ Smooth Edge Stretch (Backdrop)</option>
+        <option value="4">■ Solid Auto-Edge Colour Fill</option>
+      </select>
+      <label class="lbl">Expand Direction</label>
+      <select id="expandDir">
+        <option value="all" selected>All Sides (Center)</option>
+        <option value="top">Top Only (Add Sky / Headroom)</option>
+        <option value="bottom">Bottom Only (Add Floor)</option>
+        <option value="left">Left Only</option>
+        <option value="right">Right Only</option>
+        <option value="horiz">Left + Right (Wider)</option>
+        <option value="vert">Top + Bottom (Taller)</option>
+      </select>
+      <label class="lbl">Custom Expand (+px, 0 = auto Aspect Ratio) <span id="v-expadd">200</span> px</label>
+      <input id="expAddPx" type="range" min="0" max="1000" step="20" value="200">
+      <label class="lbl">Target Social Size (when Custom +px = 0)</label>
+      <select id="expandSize"></select>
+      <label class="lbl">Blur / Softness <span id="v-blur">40</span> px</label>
+      <input id="blur" type="range" min="5" max="100" step="5" value="40">
+      <label class="lbl">Mirror step <span id="v-expstep">40</span> px</label>
+      <input id="expstep" type="range" min="10" max="100" step="10" value="40">
+      <button id="applyExpand" class="primary">⤢ Expand Photo (Realistic)</button>
+    </main>
+
+
+    <!-- FREE ASSETS & PNG HUB -->
+    <main class="scroll toolview" id="view-assets">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon assets"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><div><div class="tool-name">Free PNG, Icons &amp; Fonts</div><div class="tool-sub">Designer der sob dorkari site ek jaygay</div></div></div>
+      <p class="hint">Niche keyword likhe (jemon <b>burger</b>, <b>instagram</b>, <b>gold frame</b>) jekono site-e click korlei sorasori search khule jabe!</p>
+      <label class="lbl">Quick Asset Search (optional)</label>
+      <input id="assetQuery" type="text" placeholder="jemon: burger, arrow icon, Eid, neon...">
+      <button id="placeAssetFile" class="primary">＋ Place Downloaded PNG / Image into Canvas</button>
+
+      <div class="section-title">Icons &amp; Vectors</div>
+      <div class="res-grid">
+        <button type="button" class="res-btn" data-url="https://www.flaticon.com/" data-search="https://www.flaticon.com/search?word="><b>Flaticon</b><span>Free PNG/SVG Icons</span></button>
+        <button type="button" class="res-btn" data-url="https://www.svgrepo.com/" data-search="https://www.svgrepo.com/vectors/"><b>SVG Repo</b><span>500k+ Free Vectors</span></button>
+        <button type="button" class="res-btn" data-url="https://icons8.com/icons" data-search="https://icons8.com/icons/set/"><b>Icons8</b><span>3D &amp; UI Icons</span></button>
+        <button type="button" class="res-btn" data-url="https://iconscout.com/" data-search="https://iconscout.com/icons/"><b>IconScout</b><span>3D &amp; Lottie Assets</span></button>
+      </div>
+
+      <div class="section-title">Transparent PNG Websites</div>
+      <div class="res-grid">
+        <button type="button" class="res-btn" data-url="https://www.pngwing.com/" data-search="https://www.pngwing.com/en/search?q="><b>PNGWing</b><span>HD Transparent PNGs</span></button>
+        <button type="button" class="res-btn" data-url="https://www.cleanpng.com/" data-search="https://www.cleanpng.com/free/"><b>CleanPNG</b><span>No-BG Objects</span></button>
+        <button type="button" class="res-btn" data-url="https://pngtree.com/" data-search="https://pngtree.com/so/"><b>Pngtree</b><span>Poster Elements</span></button>
+        <button type="button" class="res-btn" data-url="https://www.stickpng.com/" data-search="https://www.stickpng.com/search?q="><b>StickPNG</b><span>Cutout Objects</span></button>
+      </div>
+
+      <div class="section-title">Stock Photos, PSD &amp; Mockups</div>
+      <div class="res-grid">
+        <button type="button" class="res-btn" data-url="https://www.freepik.com/" data-search="https://www.freepik.com/search?format=search&query="><b>Freepik</b><span>PSD, Vectors, Photos</span></button>
+        <button type="button" class="res-btn" data-url="https://unsplash.com/" data-search="https://unsplash.com/s/photos/"><b>Unsplash</b><span>HD Free Photos</span></button>
+        <button type="button" class="res-btn" data-url="https://www.pexels.com/" data-search="https://www.pexels.com/search/"><b>Pexels</b><span>Free Stock Photos</span></button>
+        <button type="button" class="res-btn" data-url="https://www.mockupworld.co/" data-search="https://www.mockupworld.co/?s="><b>MockupWorld</b><span>Free PSD Mockups</span></button>
+      </div>
+
+      <div class="section-title">Bangla &amp; English Fonts + Colors</div>
+      <div class="res-grid">
+        <button type="button" class="res-btn" data-url="https://lipighor.com/" data-search="https://lipighor.com/"><b>Lipighor</b><span>Best Bangla Fonts</span></button>
+        <button type="button" class="res-btn" data-url="https://fonts.google.com/" data-search="https://fonts.google.com/?query="><b>Google Fonts</b><span>Free Web/Poster Fonts</span></button>
+        <button type="button" class="res-btn" data-url="https://www.dafont.com/" data-search="https://www.dafont.com/search.php?q="><b>DaFont</b><span>Display &amp; Stylish Fonts</span></button>
+        <button type="button" class="res-btn" data-url="https://coolors.co/palettes/trending" data-search="https://coolors.co/palettes/trending"><b>Coolors</b><span>Color Palettes</span></button>
+      </div>
+    </main>
+
+    <!-- QUICK DESIGNER TOOLS -->
+    <main class="scroll toolview" id="view-utils">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon utils"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><div><div class="tool-name">Quick Designer Tools</div><div class="tool-sub">1-click daily Photoshop shortcuts</div></div></div>
+      <p class="hint">Protidin-er design kaj fast korar jonno 1-click smart tools:</p>
+      <div class="row2">
+        <button id="utilCenter" class="primary">⌖ Center Layer</button>
+        <button id="utilFit" class="primary">⤢ Fit to Canvas</button>
+      </div>
+      <div class="row2">
+        <button id="utilPlace" class="secondary">＋ Place PNG / Img</button>
+        <button id="utilExportPNG" class="secondary">⤓ Export PNG</button>
+      </div>
+      <div class="section-title">Auto Color Palette (from open photo)</div>
+      <button id="utilPalette" class="secondary">🎨 Extract 5 Colors from Photo</button>
+      <div class="pal-row" id="palRow"></div>
+      <p class="hint small">Color chip-e click korle Hex code copy hoye jabe.</p>
+    </main>
+
+
+    <!-- POSTER ANIMATOR (1-CLICK + FULL USER CONTROLS + LAYER BREAKDOWN + CC LIGHT SWEEP) -->
+        <!-- AI & PRO UPSCALER (v2.75) -->
+    <main class="scroll toolview" id="view-upscale">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon upscale"><svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/><path d="M12 6l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg></span><div><div class="tool-name">AI &amp; Pro Upscaler</div><div class="tool-sub">2× / 3× / 4× Ultra-Sharp Detail Restore</div></div></div>
+      <p class="hint">Photoshop Neural <b>Preserve Details 2.0</b> + High-Pass Micro-Detail + Anti-Block Denoise — chobi boro korleo blur hobe na!</p>
+
+      <label class="lbl">Upscale Multiplier</label>
+      <select id="upScale">
+        <option value="2" selected>2× HD Upscale (Fast &amp; Razor Sharp)</option>
+        <option value="3">3× Ultra HD Upscale</option>
+        <option value="4">4× 4K / Print Master Upscale</option>
+      </select>
+
+      <label class="lbl">Enhancement Preset</label>
+      <select id="upMode">
+        <option value="balanced" selected>✨ Pro Balanced (Photo / Poster — Best)</option>
+        <option value="portrait">👤 Portrait &amp; Skin Natural (No Plastic Look)</option>
+        <option value="product">📦 Product &amp; Logo Ultra-Crisp</option>
+        <option value="print300">🖨️ Print Master (Auto 300 DPI)</option>
+      </select>
+
+      <label class="lbl">Micro-Detail &amp; Sharpness <span id="v-upsharp">55</span>%</label>
+      <input id="upSharp" type="range" min="0" max="100" step="5" value="55">
+
+      <label class="lbl">Reduce Noise / De-Block <span id="v-upnoise">20</span>%</label>
+      <input id="upNoise" type="range" min="0" max="100" step="5" value="20">
+
+      <div class="checkrow">
+        <label class="check"><input type="checkbox" id="upGrain" checked> Natural Micro-Texture (No Waxy Look)</label>
+      </div>
+
+      <button id="runUpscalePro" class="primary">✨ 1-Click Ultra Upscale (2-Pass + Camera Raw HD)</button>
+      <button id="runUpscaleGemini" class="secondary">🤖 Gemini AI Super-Resolution + 4K Upscale</button>
+      <label class="lbl">Gemini API Key (for AI Super-Res — Auto-Synced)</label>
+      <input id="upGeminiKey" type="password" placeholder="Paste Gemini API Key (AIza... or AQ....)">
+    </main>
+
+    <main class="scroll toolview" id="view-animate">
+      <button class="back" data-back>‹ Home</button>
+      <div class="tool-head"><span class="card-icon animate"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3V9z"/><path d="M2 8h20"/></svg></span><div><div class="tool-name">Poster Animator</div><div class="tool-sub">Auto Smooth Text, Hero &amp; CC Light Sweep</div></div></div>
+      <p class="hint">1 click-ei auto poster-wise animation hobe — abar niche <b>sob control apnar hate</b> (direction, distance, stagger, float, light sweep colour/strength, FPS, hold time)!</p>
+      <button id="runPosterAnim" class="primary">🎬 1-Click Auto Animate Poster (Smooth)</button>
+      <div class="row2">
+        <button id="analyzePoster" class="secondary">🔍 Layer Breakdown</button>
+        <button id="exportAnimGIF" class="secondary">⤓ Export GIF</button>
+      </div>
+      <button id="exportAnimVideo" class="secondary">⤓ Export Universal Video (MP4 / WebM)</button>
+      <div class="bd-list" id="posterBreakdown"></div>
+
+      <label class="lbl">Sound Effects (SFX Environment)</label>
+      <select id="animSfxEnv">
+        <option value="auto" selected>🔊 Auto (Matches Style Preset)</option>
+        <option value="commercial">🍔 Commercial / Product (Whoosh + Pop + Shimmer)</option>
+        <option value="luxury">✨ Luxury / Brand (Velvet Pad + Crystal Chime)</option>
+        <option value="promo">🔥 Promo / Flash Sale (808 Drop + Glitch + Typewriter)</option>
+        <option value="character">🎬 Cinematic / Character (Deep Impact + Air Swish)</option>
+        <option value="none">🔇 Off (Silent Video)</option>
+      </select>
+
+      <label class="lbl">Animation Style Preset</label>
+      <select id="animStyle">
+        <option value="commercial" selected>Commercial Food / Product (Smooth Pop + Float)</option>
+        <option value="character">Character / Portrait (Natural Rise + Breathe)</option>
+        <option value="luxury">Luxury Brand (Slow Ease + Golden Light Sweep)</option>
+        <option value="minimal">Minimal Kinetic Typography</option>
+      </select>
+
+      <div class="controls">
+        <div class="ctl-head">Full Animation Controls (Apnar Hate)</div>
+        <label class="lbl">Video Duration <span id="v-animdur">10</span> sec (Apnar Hate)</label>
+        <input id="animDuration" type="range" min="3" max="20" step="1" value="10">
+
+        <div class="checkrow">
+          <label class="check"><input type="checkbox" id="animBG" checked> BG Motion</label>
+          <label class="check"><input type="checkbox" id="animHero" checked> Model/Hero</label>
+          <label class="check"><input type="checkbox" id="animText" checked> Text</label>
+          <label class="check"><input type="checkbox" id="animSweep" checked> Light Sweep</label>
+        </div>
+
+        <label class="lbl">Text Direction</label>
+        <select id="animTextDir">
+          <option value="varied" selected>✨ Trendy Pro Mix (Pop-Up + Typewriter + Glitch + Slide!)</option>
+          <option value="typewriter">⌨️ Typewriter (Letter-by-Letter)</option>
+          <option value="popup">💥 Trendy Pop-Up Bounce</option>
+          <option value="glitch">⚡ Trendy Glitch Shake</option>
+          <option value="wave">🌊 Smooth Wave Rise</option>
+          <option value="slam">⬇️ Elastic Top Drop</option>
+          <option value="left">⬅️ Kinetic Slide Left</option>
+          <option value="right">➡️ Kinetic Slide Right</option>
+          <option value="up">⬆️ Slide Up + Fade</option>
+          <option value="fade">🌫️ Pure Smooth Fade</option>
+        </select>
+
+        <label class="lbl">Text Slide Distance <span id="v-animtdist">40</span> px</label>
+        <input id="animTextDist" type="range" min="0" max="120" step="5" value="40">
+
+        <label class="lbl">Text Stagger Delay <span id="v-animstag">3</span> frames</label>
+        <input id="animStagger" type="range" min="1" max="8" step="1" value="3">
+
+        <label class="lbl">Hero / Character Rise <span id="v-animhdist">55</span> px</label>
+        <input id="animHeroDist" type="range" min="0" max="120" step="5" value="55">
+
+        <label class="lbl">Hero Gentle Float <span id="v-animfloat">8</span> px</label>
+        <input id="animFloat" type="range" min="0" max="25" step="1" value="8">
+
+        <label class="lbl">CC Light Sweep Opacity <span id="v-animswop">72</span>%</label>
+        <input id="animSweepOp" type="range" min="10" max="100" step="2" value="72">
+
+        <label class="lbl">CC Light Sweep Colour <span id="v-animswcol">#FFF5D6</span></label>
+        <div class="colorrow"><input id="animSweepCol" type="color" value="#fff5d6"><input id="animSweepColHex" type="text" value="#FFF5D6" maxlength="7"></div>
+
+        <label class="lbl">Smoothness (Frames)</label>
+        <select id="animFrames">
+          <option value="30">Fast Smooth (30 keyframes)</option>
+          <option value="48">Pro 10s Smooth (48 keyframes)</option>
+          <option value="60" selected>Cinema Ultra Smooth (60 keyframes)</option>
+        </select>
+
+        <label class="lbl">Speed (FPS)</label>
+        <select id="animFps">
+          <option value="18">Slow / Cinematic (18 FPS)</option>
+          <option value="24">Film Smooth (24 FPS)</option>
+          <option value="30" selected>Silky Smooth (30 FPS)</option>
+        </select>
+
+        <label class="lbl">End Hold Time <span id="v-animhold">1.0</span> sec</label>
+        <input id="animHold" type="range" min="0.2" max="3.0" step="0.2" value="1.0">
+      </div>
+    </main>
+
+    <footer class="status" id="status">Loading Design360n v2.75…</footer>
+  </div>
+  <script src="js/CSInterface.js"></script>
+  <script src="js/textfx120.js"></script>
+  <script src="js/gradients.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
