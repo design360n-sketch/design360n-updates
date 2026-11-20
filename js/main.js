@@ -1,6 +1,6 @@
-/* Design360n v2.76 — CEP panel wiring. Full Photoshop control via ExtendScript (evalScript). */
+/* Design360n v2.77 — CEP panel wiring. Full Photoshop control via ExtendScript (evalScript). */
 (function () {
-  var PANEL_VERSION = "2.76";
+  var PANEL_VERSION = "2.77";
   var cs = new CSInterface();
   var $ = function (id) { return document.getElementById(id); };
 
@@ -237,8 +237,10 @@
   if ($("updNowBtn")) $("updNowBtn").addEventListener("click", applyUpdate);
   if ($("updDismissBtn")) $("updDismissBtn").addEventListener("click", hideUpdateBanner);
   if ($("updCheckBtn")) $("updCheckBtn").addEventListener("click", function () { checkForUpdates(true); });
-  /* Auto-check once, a few seconds after the panel loads. */
-  setTimeout(function () { try { checkForUpdates(false); } catch (eU) {} }, 4000);
+  /* Auto-check instantly when the panel loads, then re-check every 5 minutes
+     while the panel stays open — no reload needed to see a new version. */
+  try { checkForUpdates(false); } catch (eU) {}
+  setInterval(function () { try { checkForUpdates(false); } catch (eU2) {} }, 300000);
 
   function setStatus(msg, state) {
     var el = $("status");

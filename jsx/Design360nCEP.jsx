@@ -1,12 +1,12 @@
 // Design360n — Photoshop CEP ExtendScript Engine (.jsx)
-// Version: 2.76
+// Version: 2.77
 // ============================================================
 // Loaded by CEP (CSXS manifest ScriptPath). Full Photoshop DOM + Action Manager.
 // ES3-strict ExtendScript. Every aura* function returns "OK: ..." or "Error: ..."
 // after reading back Photoshop state — never silent failures.
 // ============================================================
 
-var DESIGN360N_VERSION = "2.76";
+var DESIGN360N_VERSION = "2.77";
 function auraVersion() { return DESIGN360N_VERSION; }
 
 /* Exact Glow presets from specification:

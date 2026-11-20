@@ -1,6 +1,6 @@
 {
-  "version": "2.76",
-  "notes": "Removed the footer line at the bottom of Home",
+  "version": "2.77",
+  "notes": "Update check is now instant on load and re-checks every 5 minutes",
   "baseUrl": "https://raw.githubusercontent.com/design360n-sketch/design360n-updates/main/",
   "downloadUrl": "https://github.com/design360n-sketch/design360n-updates/releases/latest",
   "files": [
