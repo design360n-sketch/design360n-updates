@@ -23,6 +23,6 @@
     "host/index.jsx",
     "CSXS/manifest.xml"
   ],
-  "notes": "Apparel 3D: visible size scale XS-3XL, flat-draped T-shirt cross-section, smooth C1 collar curve, sleeve quad winding fix, tribal chest graphic; size HUD refresh on export. (updateSizeHud call removed before release: function does not exist, would have broken 360 export save.)",
-  "version": "17.7.15"
+  "notes": "Apparel 3D: sculpted ghost-mannequin torso (athletic V-taper, pec/belly anatomy, armpit tension folds, waist wrinkles, hem drape), circular ribbed crewneck, HD fabric drape shader, 3-point studio rig, dark default tee. (updateSizeHud call removed again before release: still undefined in this ZIP, would have broken 360 export save.)",
+  "version": "17.7.17"
 }

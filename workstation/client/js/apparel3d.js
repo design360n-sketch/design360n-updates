@@ -149,38 +149,38 @@
     function pushV(x, y, z, u, v) { pos.push(x, y, z); nrm.push(0, 1, 0); uv.push(u, v); return (pos.length / 3) - 1; }
     function addQuad(a, b, c, d) { idx.push(a, b, c, a, c, d); }
 
-    // Visible relative size scale so switching XS -> 3XL noticeably changes garment size in studio!
+    // Visible relative size scale (XS -> 3XL clearly scales in studio)
     var sizeVis = 1.0;
-    if (spec.sizeCode === "XS") sizeVis = 0.88;
-    else if (spec.sizeCode === "S") sizeVis = 0.93;
-    else if (spec.sizeCode === "M") sizeVis = 0.97;
+    if (spec.sizeCode === "XS") sizeVis = 0.89;
+    else if (spec.sizeCode === "S") sizeVis = 0.94;
+    else if (spec.sizeCode === "M") sizeVis = 0.98;
     else if (spec.sizeCode === "L") sizeVis = 1.01;
     else if (spec.sizeCode === "XL") sizeVis = 1.05;
     else if (spec.sizeCode === "2XL") sizeVis = 1.10;
     else if (spec.sizeCode === "3XL") sizeVis = 1.15;
 
     var halfW = 0.56 * spec.bodyW * sizeVis;
-    var topY  = 0.80 * spec.bodyH * sizeVis;
-    var botY  = -0.80 * spec.bodyH * sizeVis;
+    var topY  = 0.84 * spec.bodyH * sizeVis;
+    var botY  = -0.82 * spec.bodyH * sizeVis;
     var totalH = topY - botY;
 
-    var rxCol = halfW * 0.36;
-    var rzCol = 0.145 * spec.bodyW * sizeVis;
+    // Clean circular ribbed crewneck opening (like pro ghost-mannequin mockups)
+    var rxCol = halfW * 0.35;
+    var rzCol = 0.155 * spec.bodyW * sizeVis;
 
-    // Smooth continuous C1 collar curve (zero sharp horns/spikes at ±90 deg!)
     function collarYAt(ang) {
       var cc = Math.cos(ang);
       if (cc >= 0) {
-        var curve = (spec.neckType === "vneck" || spec.neckType === "polo")
-          ? Math.pow(cc, 1.35) * spec.neckDepth * 1.12
-          : Math.pow(cc, 1.55) * spec.neckDepth * 1.05;
-        return topY - curve * sizeVis;
+        var depth = (spec.neckType === "vneck" || spec.neckType === "polo")
+          ? Math.pow(cc, 1.25) * spec.neckDepth * 1.15
+          : Math.pow(cc, 1.45) * spec.neckDepth * 1.10;
+        return topY - depth * sizeVis;
       }
-      return topY - Math.pow(-cc, 1.6) * 0.032 * sizeVis;
+      return topY - Math.pow(-cc, 1.55) * 0.028 * sizeVis;
     }
 
-    // A) TORSO SHELL (Continuous front + back with sculpted drape)
-    var segU = 48, segV = 34, torsoGrid = [];
+    // A) SCULPTED GHOST-MANNEQUIN TORSO (Athletic V-taper + Curved Bottom Hem + Realistic Drape Creases)
+    var segU = 64, segV = 48, torsoGrid = [];
     for (var j = 0; j <= segV; j++) {
       var tv = j / segV, row = [];
       for (var i = 0; i <= segU; i++) {
@@ -189,26 +189,41 @@
         var cosA = Math.cos(ang), sinA = Math.sin(ang);
         var isFront = (i <= segU / 2);
 
-        var widthCurve = 1.0 - 0.08 * Math.sin(tv * Math.PI) * (1.0 - (spec.waistTaper - 0.82) * 3.0);
-        if (tv < 0.16) widthCurve *= (0.96 + 0.04 * (tv / 0.16));
-        if (tv > 0.82) widthCurve *= (1.0 + 0.03 * ((tv - 0.82) / 0.18));
-        // Realistic flat-draped studio T-shirt cross-section (not a round barrel!)
-        var armZone = Math.exp(-Math.pow((tv - 0.16) / 0.15, 2.0)) * Math.pow(Math.abs(sinA), 2.0);
-        var rx = halfW * widthCurve * (1.0 + 0.04 * armZone);
-        var chestCurve = isFront
-          ? (0.052 * Math.sin(Math.min(1, tv * 1.45) * Math.PI) * Math.pow(Math.max(0, cosA), 1.1))
-          : (0.026 * Math.sin(tv * Math.PI) * Math.pow(Math.max(0, -cosA), 1.1));
-        var rz = 0.175 * spec.bodyW * sizeVis + chestCurve * sizeVis;
+        // Athletic V-taper silhouette: broad upper chest -> slim sculpted waist -> subtle hip flare
+        var taperStrength = 1.0 - (spec.waistTaper - 0.80) * 2.2;
+        var chestFull = Math.exp(-Math.pow((tv - 0.14) / 0.18, 2.0)) * 0.08;
+        var waistIn   = Math.exp(-Math.pow((tv - 0.68) / 0.24, 2.0)) * (0.115 * Math.max(0.35, taperStrength));
+        var hipFlare  = Math.exp(-Math.pow((tv - 0.96) / 0.14, 2.0)) * 0.032;
+        var widthCurve = 1.0 + chestFull - waistIn + hipFlare;
 
-        var foldAmp = 0.011 * Math.pow(tv, 1.4);
-        var fold = foldAmp * (Math.sin(ang * 4.0 + tv * 0.8) + 0.4 * Math.cos(ang * 7.0 - tv * 0.5));
-        var hemLip = (tv > 0.95) ? (0.005 * Math.sin(((tv - 0.95) / 0.05) * Math.PI)) : 0.0;
-        var x = sinA * (rx + fold + hemLip);
-        var z = cosA * (rz + fold + hemLip);
+        // Smooth upper shoulder rounding
+        if (tv < 0.08) widthCurve *= (0.94 + 0.06 * (tv / 0.08));
 
-        var shoulderDrop = Math.pow(Math.abs(sinA), 1.65) * 0.135 * sizeVis * Math.pow(1 - tv, 1.2);
-        var neckCarve = (topY - collarYAt(ang)) * Math.pow(1 - tv, 2.6);
-        var y = topY - tv * totalH - shoulderDrop - neckCarve;
+        var rx = halfW * widthCurve;
+
+        // Realistic chest & upper-back 3D anatomy (not a flat board, not a fat barrel)
+        var pecFull = isFront
+          ? (0.072 * Math.exp(-Math.pow((tv - 0.24) / 0.22, 2.0)) * Math.pow(Math.max(0, cosA), 0.9))
+          : (0.042 * Math.exp(-Math.pow((tv - 0.22) / 0.24, 2.0)) * Math.pow(Math.max(0, -cosA), 0.9));
+        var bellyCurve = isFront ? (0.022 * Math.sin(tv * Math.PI) * Math.max(0, cosA)) : 0;
+        var rz = (0.185 * spec.bodyW * (1.0 - waistIn * 0.65) + pecFull + bellyCurve) * sizeVis;
+
+        // Sculpted diagonal armpit tension folds + lower waist compression wrinkles (ghost-mannequin realism!)
+        var diagLeft  = Math.sin((tv * 7.5 - sinA * 4.2) * Math.PI * 0.55) * Math.exp(-Math.pow((tv - 0.45) / 0.30, 2.0));
+        var diagRight = Math.sin((tv * 7.5 + sinA * 4.2) * Math.PI * 0.55) * Math.exp(-Math.pow((tv - 0.48) / 0.30, 2.0));
+        var waistWrinkle = Math.sin(tv * 26.0 + Math.abs(sinA) * 3.5) * Math.exp(-Math.pow((tv - 0.78) / 0.16, 2.0)) * Math.pow(Math.abs(sinA), 0.8);
+        var hemDrape = Math.sin(ang * 5.0 + tv * 1.4) * Math.pow(tv, 2.0);
+        var disp = (0.0085 * (diagLeft + diagRight) * 0.5 + 0.009 * waistWrinkle + 0.007 * hemDrape) * sizeVis;
+
+        var hemLip = (tv > 0.955) ? (0.0045 * Math.sin(((tv - 0.955) / 0.045) * Math.PI)) : 0.0;
+        var x = sinA * (rx + disp * 0.75 + hemLip);
+        var z = cosA * (rz + disp * 1.15 + hemLip);
+
+        // Smooth shoulder slope + realistic curved front/back bottom hem!
+        var shoulderDrop = Math.pow(Math.abs(sinA), 1.55) * 0.145 * sizeVis * Math.pow(1 - tv, 1.35);
+        var neckCarve = (topY - collarYAt(ang)) * Math.pow(1 - tv, 2.8);
+        var hemCurve = -0.042 * sizeVis * Math.abs(cosA) * Math.pow(tv, 2.2);
+        var y = topY - tv * totalH - shoulderDrop - neckCarve + hemCurve;
 
         var uCoord = isFront
           ? (UV_REGIONS.front.x + (i / (segU / 2)) * UV_REGIONS.front.w)
@@ -224,10 +239,10 @@
       }
     }
 
-    // B) SOLID SCULPTED SHOULDER YOKE CAP (Bridges Top Torso Seam -> Collar Base! Eliminates hollow top!)
-    var capRings = 8, capGrid = [];
+    // B) SCULPTED SHOULDER YOKE CAP (Bridges outer shoulder smoothly into ribbed collar base)
+    var capRings = 10, capGrid = [];
     for (var r = 0; r <= capRings; r++) {
-      var tr = r / capRings; // 0 = outer torso top rim, 1 = inner collar base ring
+      var tr = r / capRings;
       var crow = [];
       for (var i3 = 0; i3 <= segU; i3++) {
         var tu3 = i3 / segU;
@@ -235,17 +250,13 @@
         var sin3 = Math.sin(ang3), cos3 = Math.cos(ang3);
         var isF3 = (i3 <= segU / 2);
 
-        // Outer point = exact torsoGrid[0][i3]
         var oIdx = torsoGrid[0][i3] * 3;
         var ox = pos[oIdx], oy = pos[oIdx + 1], oz = pos[oIdx + 2];
-
-        // Inner collar base point
         var ix = sin3 * rxCol;
         var iz = cos3 * rzCol;
         var iy = collarYAt(ang3);
 
-        // Smooth curved shoulder dome interpolation
-        var domeLift = Math.sin(tr * Math.PI) * 0.055 * Math.pow(Math.abs(sin3), 0.7);
+        var domeLift = Math.sin(tr * Math.PI) * 0.042 * sizeVis * Math.pow(Math.abs(sin3), 0.75);
         var px = ox + (ix - ox) * tr;
         var pz = oz + (iz - oz) * tr;
         var py = oy + (iy - oy) * tr + domeLift;
@@ -253,7 +264,7 @@
         var uCap = isF3
           ? (UV_REGIONS.front.x + (i3 / (segU / 2)) * UV_REGIONS.front.w)
           : (UV_REGIONS.back.x + ((i3 - segU / 2) / (segU / 2)) * UV_REGIONS.back.w);
-        var vCap = (isF3 ? UV_REGIONS.front.y : UV_REGIONS.back.y) + (1 - tr) * 0.05;
+        var vCap = (isF3 ? UV_REGIONS.front.y : UV_REGIONS.back.y) + (1 - tr) * 0.04;
         crow.push(pushV(px, py, pz, uCap, vCap));
       }
       capGrid.push(crow);
@@ -264,20 +275,20 @@
       }
     }
 
-    // C) RIBBED COLLAR BAND (Outer + Top Rim + Inner Wall so collar has real 3D thickness!)
-    var colSegU = segU, colSegV = 6, colGrid = [];
+    // C) SMOOTH THICK RIBBED COLLAR BAND (Zero spikes, realistic rounded rim)
+    var colSegU = segU, colSegV = 8, colGrid = [];
     for (var cv = 0; cv <= colSegV; cv++) {
-      var ctv = cv / colSegV; // 0 = base outer, 0.5 = top rounded rim, 1.0 = inner collar edge
+      var ctv = cv / colSegV;
       var crow2 = [];
       for (var cu = 0; cu <= colSegU; cu++) {
         var ctu = cu / colSegU;
         var cAng = (ctu * 2 - 0.5) * Math.PI;
         var cs = Math.sin(cAng), cc = Math.cos(cAng);
-        var radScale = 1.0 + 0.06 * Math.sin(ctv * Math.PI) - (ctv > 0.5 ? (ctv - 0.5) * 0.14 : 0);
-        if (spec.neckType === "polo" && ctv < 0.6) radScale += 0.14 * (0.6 - ctv);
-        var cx = cs * rxCol * radScale;
-        var cz = cc * rzCol * radScale;
-        var lift = Math.sin(ctv * Math.PI) * spec.collarH * (0.45 + 0.55 * Math.abs(cc));
+        var thick = 1.0 + 0.075 * Math.sin(ctv * Math.PI) - (ctv > 0.5 ? (ctv - 0.5) * 0.16 : 0);
+        if (spec.neckType === "polo" && ctv < 0.6) thick += 0.15 * (0.6 - ctv);
+        var cx = cs * rxCol * thick;
+        var cz = cc * rzCol * thick;
+        var lift = Math.sin(ctv * Math.PI) * spec.collarH * sizeVis * (0.62 + 0.38 * Math.abs(cc));
         var cy = collarYAt(cAng) + lift;
         var uC = UV_REGIONS.neckRib.x + ctu * UV_REGIONS.neckRib.w;
         var vC = UV_REGIONS.neckRib.y + ctv * UV_REGIONS.neckRib.h;
@@ -291,100 +302,96 @@
       }
     }
 
-    // D) CLOSED INNER NECK CAVITY + INNER BACK LABEL LINING (Never transparent/empty inside!)
+    // D) DEEP DARK INNER NECK CAVITY (Gives real 3D ghost-mannequin depth inside the collar!)
     var cavSegV = 8, cavGrid = [];
     for (var kv = 0; kv <= cavSegV; kv++) {
-      var ktv = kv / cavSegV; // 0 = inner collar edge, 1 = deep inner torso back/chest
+      var ktv = kv / cavSegV;
       var krow = [];
       for (var ku = 0; ku <= colSegU; ku++) {
         var ktu = ku / colSegU;
         var kAng = (ktu * 2 - 0.5) * Math.PI;
         var ks = Math.sin(kAng), kc = Math.cos(kAng);
-        var shrink = 0.92 * (1.0 - 0.12 * ktv);
+        var shrink = 0.90 * (1.0 - 0.14 * ktv);
         var kx = ks * rxCol * shrink;
         var kz = kc * rzCol * shrink;
-        var ky = collarYAt(kAng) - ktv * 0.42;
-        // Map back half of inner cavity to upper-center Back region (where Inner Neck Label lives!)
+        var ky = collarYAt(kAng) - ktv * 0.38 * sizeVis;
         var uIn = UV_REGIONS.back.x + (0.30 + (1 - ktu) * 0.40) * UV_REGIONS.back.w;
         var vIn = UV_REGIONS.back.y + (0.04 + ktv * 0.24) * UV_REGIONS.back.h;
         krow.push(pushV(kx, ky, kz, uIn, vIn));
       }
       cavGrid.push(krow);
     }
-    // Winding faces INWARD so you see the inside of the back neck when viewing from front!
     for (var kv2 = 0; kv2 < cavSegV; kv2++) {
       for (var ku2 = 0; ku2 < colSegU; ku2++) {
         addQuad(cavGrid[kv2][ku2], cavGrid[kv2][ku2 + 1], cavGrid[kv2 + 1][ku2 + 1], cavGrid[kv2 + 1][ku2]);
       }
     }
-    // Seal bottom of inner neck cavity so no background ever leaks through collar!
-    var cavCenter = pushV(0, topY - 0.52, 0, UV_REGIONS.back.x + 0.02, UV_REGIONS.back.y + 0.55);
+    var cavCenter = pushV(0, topY - 0.48 * sizeVis, 0, UV_REGIONS.back.x + 0.02, UV_REGIONS.back.y + 0.55);
     for (var ku3 = 0; ku3 < colSegU; ku3++) {
       idx.push(cavGrid[cavSegV][ku3], cavGrid[cavSegV][ku3 + 1], cavCenter);
     }
 
-    // E) BOTTOM HEM INNER CAP (Solid garment feel from low camera angles)
-    var botCenter = pushV(0, botY + 0.04, 0, UV_REGIONS.front.x + 0.02, UV_REGIONS.front.y + 0.58);
+    // E) BOTTOM HEM CLOSURE
+    var botCenter = pushV(0, botY + 0.03, 0, UV_REGIONS.front.x + 0.02, UV_REGIONS.front.y + 0.58);
     for (var bi = 0; bi < segU; bi++) {
       idx.push(torsoGrid[segV][bi], botCenter, torsoGrid[segV][bi + 1]);
     }
 
-    // F) SEAMLESS ANATOMICAL SLEEVES (Welded Shoulder Cap -> Gravity Drape -> Stitched Cuff)
+    // F) NATURAL HANGING GHOST-MANNEQUIN SLEEVES (Steep natural arm hang ~66 deg, rounded deltoid cap, realistic sleeve creases!)
     function buildSleeve(side) {
       if (spec.sleeveLen <= 0.01) return;
-      var sSegL = 22, sSegR = 28, sGrid = [];
+      var sSegL = 24, sSegR = 32, sGrid = [];
       var reg = (side < 0) ? UV_REGIONS.rightSleeve : UV_REGIONS.leftSleeve;
 
-      // Embed sleeve root deeply inside the upper shoulder/armhole so there is ZERO gap or step!
       var isLong = (spec.id === "longsleeve" || spec.id === "hoodie");
-      var rootEmbed = halfW * 0.28;
-      var startX = side * (halfW - rootEmbed);
-      var shoulderTopY = topY - 0.125 * sizeVis;
-      var baseRadY = Math.max(spec.sleeveRad * 1.06, 0.215 * spec.bodyW) * sizeVis;
-      var baseRadZ = 0.168 * spec.bodyW * sizeVis;
-      var startY = shoulderTopY - baseRadY * 0.92;
-      var totalLen = (spec.sleeveLen * sizeVis) + rootEmbed * 0.80;
-      var angleMax = spec.sleeveDrop;
+      var isOversized = (spec.id === "oversized" || spec.id === "crop" || spec.id === "hoodie");
 
-      // Quadratic smooth centerline: flows horizontally out of shoulder dome, then drapes down with gravity
+      // Anchor deeply into rounded deltoid shoulder so sleeve flows smoothly down along body (NO T-pose!)
+      var rootEmbed = halfW * 0.26;
+      var startX = side * (halfW - rootEmbed);
+      var shoulderTopY = topY - 0.132 * sizeVis;
+      var baseRadY = Math.max(spec.sleeveRad * 1.02, 0.215 * spec.bodyW) * sizeVis;
+      var baseRadZ = 0.175 * spec.bodyW * sizeVis;
+      var startY = shoulderTopY - baseRadY * 0.86;
+
+      // Natural hanging angle: ~64-72 deg down from horizontal (like real studio ghost-mannequin T-shirt!)
+      var hangAngle = isLong ? 1.16 : (isOversized ? 0.94 : 1.00);
+      var totalLen = (spec.sleeveLen * (isLong ? 0.96 : 1.06) * sizeVis) + rootEmbed * 0.72;
+
+      // Smooth rounded deltoid shoulder curve -> natural hanging sleeve
       var p0x = startX, p0y = startY;
-      var p1x = startX + side * (totalLen * 0.48), p1y = startY - Math.sin(angleMax) * (totalLen * 0.22);
-      var p2x = startX + side * Math.cos(angleMax) * totalLen, p2y = startY - Math.sin(angleMax) * totalLen - 0.045;
+      var p1x = startX + side * (totalLen * 0.48), p1y = startY - Math.sin(hangAngle) * (totalLen * 0.18);
+      var p2x = startX + side * Math.cos(hangAngle) * totalLen, p2y = startY - Math.sin(hangAngle) * totalLen;
 
       for (var sl = 0; sl <= sSegL; sl++) {
         var tl = sl / sSegL;
         var omt = 1 - tl;
         var axisX = omt * omt * p0x + 2 * omt * tl * p1x + tl * tl * p2x;
         var axisY = omt * omt * p0y + 2 * omt * tl * p1y + tl * tl * p2y;
-        var axisZ = -0.015 * tl;
+        var axisZ = -0.012 * tl * sizeVis;
 
-        // Tangent vector along Bezier centerline for smooth perpendicular ring orientation
         var tanX = 2 * omt * (p1x - p0x) + 2 * tl * (p2x - p1x);
         var tanY = 2 * omt * (p1y - p0y) + 2 * tl * (p2y - p1y);
         var tanLen = Math.sqrt(tanX * tanX + tanY * tanY) || 1;
         tanX /= tanLen; tanY /= tanLen;
-        // Up normal perpendicular to sleeve axis pointing toward shoulder top
         var upX = (side > 0) ? -tanY : tanY;
         var upY = (side > 0) ?  tanX : -tanX;
 
-        // Smooth taper from anatomical shoulder oval -> relaxed draped sleeve -> stitched cuff
-        var blendCap = Math.pow(1 - tl, 1.6);
-        var taper = isLong ? (1.0 - 0.46 * Math.pow(tl, 0.85)) : (1.0 - 0.24 * tl);
-        var radY = baseRadY * blendCap + (spec.sleeveRad * 0.96 * sizeVis * taper) * (1 - blendCap);
-        var radZ = baseRadZ * blendCap + (0.135 * spec.bodyW * sizeVis * taper) * (1 - blendCap);
-        var cuffLip = (tl > 0.92) ? (0.005 * Math.sin(((tl - 0.92) / 0.08) * Math.PI)) : 0.0;
+        var blendCap = Math.pow(1 - tl, 1.8);
+        var taper = isLong ? (1.0 - 0.44 * Math.pow(tl, 0.85)) : (1.0 - 0.22 * tl);
+        var radY = baseRadY * blendCap + (spec.sleeveRad * 0.86 * sizeVis * taper) * (1 - blendCap);
+        var radZ = baseRadZ * blendCap + (0.145 * spec.bodyW * sizeVis * taper) * (1 - blendCap);
+        var cuffLip = (tl > 0.91) ? (0.005 * Math.sin(((tl - 0.91) / 0.09) * Math.PI)) : 0.0;
 
         var srow = [];
         for (var sr = 0; sr <= sSegR; sr++) {
           var tr = sr / sSegR, phi = tr * Math.PI * 2;
           var cP = Math.cos(phi), sP = Math.sin(phi);
-          // Natural cloth crease ripple along underarm & lower sleeve
-          var underarmCrease = (cP < 0 ? 0.012 * (-cP) : 0.004) * Math.sin(tl * Math.PI);
-          var ripple = (0.008 * tl) * Math.sin(phi * 3.0 + tl * 2.6) - underarmCrease;
-          var ly = cP * (radY + ripple + cuffLip);
-          var lz = sP * (radZ + ripple * 0.7 + cuffLip);
-          // Gently pull inner shoulder root vertices inward so they tuck cleanly inside torso
-          var rootTuck = (sl === 0) ? 0.92 : 1.0;
+          // Natural sleeve drape folds on under-side & near cuff
+          var foldS = (0.0085 * Math.sin(phi * 3.0 + tl * 3.8) + 0.0045 * Math.cos(phi * 5.0 - tl * 2.0)) * Math.sin(tl * Math.PI);
+          var ly = cP * (radY + foldS + cuffLip);
+          var lz = sP * (radZ + foldS * 0.7 + cuffLip);
+          var rootTuck = (sl === 0) ? 0.90 : 1.0;
           var vx = axisX + upX * ly * rootTuck;
           var vy = axisY + upY * ly * rootTuck;
           var vz = axisZ + lz * rootTuck;
@@ -393,6 +400,7 @@
         sGrid.push(srow);
       }
 
+      // Correct OUTWARD-facing winding so sleeves share identical studio lighting with torso!
       for (var sl2 = 0; sl2 < sSegL; sl2++) {
         for (var sr2 = 0; sr2 < sSegR; sr2++) {
           if (side > 0) addQuad(sGrid[sl2][sr2], sGrid[sl2][sr2 + 1], sGrid[sl2 + 1][sr2 + 1], sGrid[sl2 + 1][sr2]);
@@ -400,9 +408,9 @@
         }
       }
 
-      // Recessed inner sleeve cuff lip + dark interior closure (realistic thickness)
-      var endX = p2x - side * 0.05;
-      var endY = p2y + 0.03;
+      // Recessed inner cuff dark interior
+      var endX = p2x - side * 0.04;
+      var endY = p2y + 0.05;
       var cuffCenter = pushV(endX, endY, -0.02, reg.x + 0.02, reg.y + 0.02);
       for (var sr3 = 0; sr3 < sSegR; sr3++) {
         if (side > 0) idx.push(sGrid[sSegL][sr3], cuffCenter, sGrid[sSegL][sr3 + 1]);
@@ -458,24 +466,32 @@
       prof.push([py, pr, vTex]);
     }
 
-    // Rounded top shoulder bevel
+    // Crisp beveled insulated-bottle shoulder -> gleaming stainless steel neck collar
     var topR = prof[prof.length - 1][1];
-    prof.push([topBodyY - 0.05, topR * 0.96, 0.24]);
-    prof.push([topBodyY, topR * 0.88, 0.23]);
-
-    // Metallic / Accent Neck Ring (like Owala rose-gold collar!)
-    prof.push([topBodyY + 0.01, topR * 0.90, 0.22]);
-    prof.push([topBodyY + capH * 0.24, topR * 0.90, 0.17]);
+    var isLoopCap = (spec.capStyle === "owala" || spec.capStyle === "sport" || spec.capStyle === "screw");
+    if (isLoopCap) {
+      prof.push([topBodyY - 0.08, topR * 0.99, 0.245]);
+      prof.push([topBodyY - 0.04, topR * 0.93, 0.242]);
+      prof.push([topBodyY + 0.02, topR * 0.70, 0.238]);
+      // Gleaming Brushed Stainless Steel Neck Collar (matching reference!)
+      prof.push([topBodyY + 0.025, topR * 0.68, 0.225]);
+      prof.push([topBodyY + capH * 0.30, topR * 0.68, 0.172]);
+      // Matte sculpted cap base sitting cleanly on steel collar
+      prof.push([topBodyY + capH * 0.31, topR * 0.74, 0.155]);
+      prof.push([topBodyY + capH * 0.56, topR * 0.75, 0.10]);
+      prof.push([topBodyY + capH * 0.62, topR * 0.66, 0.06]);
+      prof.push([topBodyY + capH * 0.64, 0.001, 0.02]);
+    } else {
+      prof.push([topBodyY - 0.05, topR * 0.96, 0.24]);
+      prof.push([topBodyY, topR * 0.88, 0.23]);
+      prof.push([topBodyY + 0.01, topR * 0.90, 0.22]);
+      prof.push([topBodyY + capH * 0.24, topR * 0.90, 0.17]);
+    }
 
     // Sculpted Cap / Lid per Bottle Type
-    if (spec.capStyle === "owala") {
-      // Exact Owala FreeSip Rounded Dome Lid + Subtle Flip-Top Cap
-      prof.push([topBodyY + capH * 0.25, topR * 0.92, 0.15]);
-      prof.push([topBodyY + capH * 0.48, topR * 0.88, 0.12]);
-      prof.push([topBodyY + capH * 0.72, topR * 0.76, 0.08]);
-      prof.push([topBodyY + capH * 0.90, topR * 0.54, 0.05]);
-      prof.push([topCapY, topR * 0.34, 0.02]);
-      prof.push([topCapY, 0.001, 0.01]);
+    if (isLoopCap) {
+      // Handled above with steel collar + sculpted cap base + 3D hollow carry loop below
+    } else if (spec.capStyle === "owala_unused") {
     } else if (spec.capStyle === "can") {
       prof.push([topBodyY + 0.05, R * 0.86, 0.14]);
       prof.push([topBodyY + 0.09, R * 0.88, 0.06]);
@@ -526,12 +542,35 @@
       }
     }
 
-    // Add Owala Flip-Spout Carry Loop / Pump Nozzle accent block if applicable
-    if (spec.capStyle === "owala") {
-      var sx0 = -R * 0.20, sx1 = R * 0.20, sy0 = topBodyY + capH * 0.72, sy1 = topCapY + 0.055, sz0 = -R * 0.30, sz1 = R * 0.30;
-      var v0 = pushV(sx0, sy0, sz1, 0.5, 0.02), v1 = pushV(sx1, sy0, sz1, 0.5, 0.02), v2 = pushV(sx1, sy1, sz1 * 0.6, 0.5, 0.01), v3 = pushV(sx0, sy1, sz1 * 0.6, 0.5, 0.01);
-      var v4 = pushV(sx0, sy0, sz0, 0.5, 0.02), v5 = pushV(sx1, sy0, sz0, 0.5, 0.02), v6 = pushV(sx1, sy1, sz0 * 0.6, 0.5, 0.01), v7 = pushV(sx0, sy1, sz0 * 0.6, 0.5, 0.01);
-      addQuad(v0, v1, v2, v3); addQuad(v5, v4, v7, v6); addQuad(v3, v2, v6, v7); addQuad(v1, v5, v6, v2); addQuad(v4, v0, v3, v7);
+    // TRUE 3D HOLLOW CIRCULAR CARRY-LOOP HANDLE (Torus arch with clean open hole, matching studio reference!)
+    if (spec.capStyle === "owala" || spec.capStyle === "sport" || spec.capStyle === "screw") {
+      var majR = topR * 0.36;
+      var minR = topR * 0.135;
+      var loopCy = topBodyY + capH * 0.80;
+      var tSegU = 28, tSegV = 14, tGrid = [];
+      for (var tu2 = 0; tu2 <= tSegU; tu2++) {
+        var theta = (tu2 / tSegU) * Math.PI * 2.0; // ring in XY plane so hole faces front (+Z)!
+        var ct = Math.cos(theta), st = Math.sin(theta);
+        // Slightly taller ergonomic oval arch
+        var cxL = ct * majR * 1.02;
+        var cyL = loopCy + st * majR * 1.12;
+        var trow = [];
+        for (var tv2 = 0; tv2 <= tSegV; tv2++) {
+          var phi2 = (tv2 / tSegV) * Math.PI * 2.0;
+          var cp2 = Math.cos(phi2), sp2 = Math.sin(phi2);
+          // Slightly wider grip along Z for comfortable sculpted handle thickness
+          var vx = cxL + ct * cp2 * minR;
+          var vy = cyL + st * cp2 * minR;
+          var vz = sp2 * minR * 1.35;
+          trow.push(pushV(vx, vy, vz, 0.5, 0.06));
+        }
+        tGrid.push(trow);
+      }
+      for (var tu3 = 0; tu3 < tSegU; tu3++) {
+        for (var tv3 = 0; tv3 < tSegV; tv3++) {
+          addQuad(tGrid[tu3][tv3], tGrid[tu3 + 1][tv3], tGrid[tu3 + 1][tv3 + 1], tGrid[tu3][tv3 + 1]);
+        }
+      }
     }
 
     return finalizeMesh(pos, nrm, uv, idx);
@@ -838,29 +877,29 @@
     "void main() {",
     "  vec4 tex = texture2D(uTex, vUV);",
     "  vec3 N = normalize(vNrm);",
-    "  float creaseShade = 1.0;",
+    "  float foldAO = 1.0;",
     "  if (uWrinkle > 0.01) {",
-    "    // Organic low-frequency cloth drape + subtle micro-weave (no harsh zebra stripes!)",
-    "    float d1 = sin(vWorldPos.x * 6.5 + vWorldPos.y * 2.4) * cos(vWorldPos.y * 4.8 - vWorldPos.z * 3.0);",
-    "    float d2 = sin(vWorldPos.x * 14.0 - vWorldPos.y * 8.5 + vWorldPos.z * 6.0);",
-    "    float weave = sin(vUV.x * 520.0) * sin(vUV.y * 520.0) * 0.015;",
-    "    N = normalize(N + vec3((d1 * 0.075 + d2 * 0.03) * uWrinkle, (d2 * 0.04) * uWrinkle, weave));",
-    "    creaseShade = 1.0 - uFoldShadow * 0.11 * max(0.0, -d1);",
+    "    // High-definition studio fabric drape & diagonal tension crease normal perturbation",
+    "    float dA = sin(vWorldPos.x * 7.5 + vWorldPos.y * 4.5) * cos(vWorldPos.y * 6.0 - vWorldPos.z * 4.0);",
+    "    float dB = sin(vWorldPos.x * 15.0 - vWorldPos.y * 11.0);",
+    "    float micro = sin(vUV.x * 640.0) * sin(vUV.y * 640.0) * 0.012;",
+    "    N = normalize(N + vec3((dA * 0.09 + dB * 0.035) * uWrinkle, (dB * 0.045) * uWrinkle, micro));",
+    "    foldAO = 1.0 - uFoldShadow * 0.16 * max(0.0, -dA);",
     "  }",
-    "  vec3 L1 = normalize(vec3(0.65, 1.15, 1.55));",
-    "  vec3 L2 = normalize(vec3(-1.05, 0.45, 0.65));",
-    "  vec3 L3 = normalize(vec3(0.10, 0.85, -1.25));",
-    "  vec3 V  = normalize(vec3(0.0, 0.0, 3.4) - vWorldPos);",
-    "  vec3 H1 = normalize(L1 + V);",
-    "  // Studio softbox wrap diffuse + hemisphere sky/ground bounce",
-    "  float keyWrap = max(0.0, (dot(N, L1) + 0.48) / 1.48);",
-    "  float fillDiff = max(0.0, (dot(N, L2) + 0.35) / 1.35) * 0.32;",
-    "  float rimDiff = pow(1.0 - max(dot(N, V), 0.0), 2.6) * max(0.0, dot(N, L3) + 0.45) * 0.22;",
-    "  float hemi = 0.28 + 0.14 * (N.y * 0.5 + 0.5);",
-    "  float spec = pow(max(dot(N, H1), 0.0), uSpecPow) * uSheen;",
-    "  float velvet = pow(1.0 - max(dot(N, V), 0.0), 3.2) * (uWrinkle > 0.01 ? 0.10 : uSheen * 0.45);",
-    "  vec3 lit = tex.rgb * (hemi + 0.62 * keyWrap + fillDiff) * creaseShade;",
-    "  vec3 col = lit + vec3(spec) + tex.rgb * (velvet + rimDiff * 0.6) + vec3(rimDiff * 0.08);",
+    "  // Studio 3-point photography rig: Overhead Softbox Key + Side Fill + Crisp Silhouette Rim",
+    "  vec3 Lkey  = normalize(vec3(0.35, 1.35, 1.45));",
+    "  vec3 Lfill = normalize(vec3(-1.15, 0.40, 0.75));",
+    "  vec3 Lrim  = normalize(vec3(0.0, 0.90, -1.35));",
+    "  vec3 V     = normalize(vec3(0.0, 0.05, 3.6) - vWorldPos);",
+    "  vec3 Hkey  = normalize(Lkey + V);",
+    "  float diffKey  = max(0.0, (dot(N, Lkey) + 0.35) / 1.35);",
+    "  float diffFill = max(0.0, (dot(N, Lfill) + 0.30) / 1.30) * 0.28;",
+    "  float hemi     = 0.20 + 0.18 * (N.y * 0.5 + 0.5);",
+    "  // Realistic satin/cotton specular sheen on shoulder & chest ridges (makes black tees look 3D!)",
+    "  float specBase = pow(max(dot(N, Hkey), 0.0), max(12.0, uSpecPow)) * max(uSheen, 0.14);",
+    "  float rimFres  = pow(1.0 - max(dot(N, V), 0.0), 2.8) * (0.14 + 0.12 * max(0.0, dot(N, Lrim) + 0.4));",
+    "  vec3 lit = tex.rgb * (hemi + 0.70 * diffKey + diffFill) * foldAO;",
+    "  vec3 col = lit + vec3(specBase * 0.55 + rimFres * 0.42);",
     "  gl_FragColor = vec4(min(col, vec3(1.0)), 1.0);",
     "}"
   ].join("\n");
@@ -888,16 +927,16 @@
     this.state = {
       studioMode: "tshirt", // "tshirt" | "bottle"
       garmentType: "oversized", sizeCode: "XL",
-      bodyColor: "#7a1c1c", sleeveColor: "#7a1c1c", collarColor: "#5e1515",
+      bodyColor: "#14161a", sleeveColor: "#14161a", collarColor: "#0e1013",
       bottleType: "owala", bottleVol: "710ml",
-      bottleBodyColor: "#16181d", bottleCapColor: "#f4f2ee", bottleRingColor: "#c8a996",
+      bottleBodyColor: "#1b1e23", bottleCapColor: "#22252b", bottleRingColor: "#d8dee6",
       bottleFinish: "matte",
-      material: "cotton", wrinkles: 0.55, foldShadow: 0.65, backdrop: "blinds",
+      material: "cotton", wrinkles: 0.55, foldShadow: 0.65, backdrop: "gray",
       showDemoArtwork: true, showNeckLabel: true,
       labelBrand: "DESIGN360N", labelMeta: "100% COTTON • MADE IN BANGLADESH",
       fullPatternImg: null, fullBottleImg: null,
       layers: [], bottleLayers: [],
-      rotY: 0.18, rotX: 0.05, zoom: 3.55, panY: 0.02, autoRotate: false
+      rotY: 0.04, rotX: 0.04, zoom: 3.40, panY: 0.00, autoRotate: false
     };
 
     this.atlasCanvas = createTextureAtlas();
