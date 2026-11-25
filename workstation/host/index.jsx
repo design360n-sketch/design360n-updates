@@ -2723,18 +2723,6 @@ function dmSealColor(doc, name) {
     return c;
 }
 
-function dmSealArcPoints(cx, cy, rx, ry, a0deg, a1deg, stepDeg) {
-    var pts = [];
-    var a0 = a0deg * Math.PI / 180, a1 = a1deg * Math.PI / 180;
-    var step = stepDeg * Math.PI / 180;
-    var n = Math.max(2, Math.round(Math.abs(a1 - a0) / step));
-    for (var i = 0; i <= n; i++) {
-        var a = a0 + (a1 - a0) * (i / n);
-        pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
-    }
-    return pts;
-}
-
 function dmSealCenteredText(grp, str, cx, yCenterPt, size, col, fontObj, maxW) {
     if (!str) return null;
     var tf = grp.textFrames.add();
@@ -2749,7 +2737,51 @@ function dmSealCenteredText(grp, str, cx, yCenterPt, size, col, fontObj, maxW) {
         ca.size = ns;
     }
     tf.position = [cx - tf.width / 2, yCenterPt + tf.height / 2];
+    // Self-correct: measure the real bounds and shift so the frame is truly
+    // centred at (cx, yCenterPt), whatever the frame's anchor semantics are.
+    try {
+        var gb = tf.geometricBounds;
+        var ax = (gb[0] + gb[2]) / 2, ay = (gb[1] + gb[3]) / 2;
+        var dx = cx - ax, dy = yCenterPt - ay;
+        if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+            var pos = tf.position;
+            tf.position = [pos[0] + dx, pos[1] + dy];
+        }
+    } catch (eG) {}
     return tf;
+}
+
+function dmSealArcText(grp, str, cx, cy, rxE, ryE, aStartDeg, aEndDeg, fs, col, fontObj) {
+    // Ring text WITHOUT textPath (that API does not reliably place text on a
+    // path — v17.7.5's ring text fell off the circle): one small text frame
+    // per character, each centred on the arc and rotated so its top points
+    // radially outward. Angles are document coords (Y up): 90 deg = top of
+    // the seal. Characters run left -> right, so the first character sits at
+    // the LEFT end of the arc (the larger angle).
+    var n = str.length;
+    if (n === 0) return;
+    var span = aStartDeg - aEndDeg;
+    for (var i = 0; i < n; i++) {
+        var frac = (i + 0.5) / n;
+        var aDeg = aStartDeg - span * frac;
+        var aRad = aDeg * Math.PI / 180;
+        var px = cx + rxE * Math.cos(aRad);
+        var py = cy + ryE * Math.sin(aRad);
+        var tf = grp.textFrames.add();
+        tf.contents = str.charAt(i);
+        var ca = tf.textRange.characterAttributes;
+        ca.size = fs;
+        ca.fillColor = col;
+        if (fontObj) { try { ca.textFont = fontObj; } catch (eF) {} }
+        tf.position = [px - tf.width / 2, py + tf.height / 2];
+        try {
+            var gb = tf.geometricBounds;
+            var ax = (gb[0] + gb[2]) / 2, ay = (gb[1] + gb[3]) / 2;
+            var pos = tf.position;
+            tf.position = [pos[0] + (px - ax), pos[1] + (py - ay)];
+        } catch (eG) {}
+        try { tf.rotate(aDeg - 90, true, true, true, true, Transformation.CENTER); } catch (eR) {}
+    }
 }
 
 function dmGenerateSeal(payloadJSON) {
@@ -2804,44 +2836,27 @@ function dmGenerateSeal(payloadJSON) {
 
         var fontObj = dmFindTextFont("Arial");
 
-        // Outer text on a top arc (250 deg, centred on the top, gap at the bottom).
-        // The arc runs clockwise over the top (left -> top -> right), so the text
-        // reads left-to-right and upright (glyph tops point outward). The arc
-        // path itself is invisible (no stroke, no fill). The font size is fitted
-        // to the arc length, and the text baseline radius is pulled in from the
-        // ring by the cap height so no letter pokes outside the ring.
+        // Outer text on a top arc (250 deg, centred on the top, gap at the
+        // bottom). One frame per character, placed on the arc and rotated so
+        // glyph tops point outward — no textPath, so it cannot fall off the
+        // ring. The glyph-centre radius is pulled in from the ring by half
+        // the cap height so no letter pokes outside the ring.
         if (outerText) {
             var fs = Math.min(diaPt * 0.16, 24);
             var rTxtX = rx, rTxtY = ry;
             for (var it = 0; it < 40; it++) {
                 var capH = 0.72 * fs;
-                rTxtX = rx - 2 - capH;
-                rTxtY = ry - 2 - capH;
+                rTxtX = rx - 2 - capH / 2;
+                rTxtY = ry - 2 - capH / 2;
                 var rAvg = (rTxtX + rTxtY) / 2;
                 var arcLen = (250 * Math.PI / 180) * rAvg;
                 if (fs <= 5) break;
-                if (outerText.length * fs * 0.62 <= arcLen * 0.95) break;
+                if (outerText.length * fs * 0.62 <= arcLen * 0.92) break;
                 fs -= 0.5;
             }
             if (rTxtX < 8) rTxtX = 8;
             if (rTxtY < 8) rTxtY = 8;
-            var arcPts = dmSealArcPoints(cx, cy, rTxtX, rTxtY, 215, -35, 4);
-            var arc = grp.pathItems.add();
-            arc.setEntirePath(arcPts);
-            arc.filled = false; arc.stroked = false;
-            var tf = grp.textFrames.add();
-            tf.contents = outerText;
-            var ca = tf.textRange.characterAttributes;
-            ca.size = fs;
-            ca.fillColor = col;
-            if (fontObj) { try { ca.textFont = fontObj; } catch (eF) {} }
-            try { tf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (eJ) {}
-            var pathOK = false;
-            try { tf.textPath = arc; pathOK = true; } catch (eP) { pathOK = false; }
-            if (!pathOK) {
-                // Fallback: straight text centred near the top inside the ring.
-                tf.position = [cx - tf.width / 2, cy + ry * 0.88 + tf.height / 2];
-            }
+            dmSealArcText(grp, outerText, cx, cy, rTxtX, rTxtY, 215, -35, fs, col, fontObj);
         }
 
         // Centre element: star (filled 5-point polygon) or centre text lines.
