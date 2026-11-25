@@ -2992,3 +2992,470 @@ function dmGenerateSeal(payloadJSON) {
         return "ERROR:" + err.message + " (line " + err.line + ")";
     }
 }
+
+/* --- Bento Grid System: Asymmetric rounded vector cards & guides (v17.7.19) --- */
+function dmGenerateBentoGrid(payloadJSON) {
+    try {
+        var p = dmParseJSON(payloadJSON);
+        var cols = Math.max(2, Math.min(8, parseInt(p.cols, 10) || 4));
+        var rows = Math.max(2, Math.min(8, parseInt(p.rows, 10) || 3));
+        var gutter = Math.max(0, parseFloat(p.gutter) || 0);
+        var margin = Math.max(0, parseFloat(p.margin) || 0);
+        var radius = Math.max(0, parseFloat(p.radius) || 0);
+        var style = String(p.style || "filled");
+        var presetKey = String(p.artboardPreset || "active");
+        var cells = p.cells || [];
+        if (cells.length === 0) return "ERROR:No bento cells to generate.";
+
+        var doc;
+        if (presetKey === "active" && app.documents.length > 0) {
+            doc = app.activeDocument;
+        } else {
+            var wPt = 1920, hPt = 1080, isCMYK = false;
+            if (presetKey === "1080x1080") { wPt = 1080; hPt = 1080; }
+            else if (presetKey === "1080x1350") { wPt = 1080; hPt = 1350; }
+            else if (presetKey === "a4_l") { wPt = 297 * MM_TO_PT; hPt = 210 * MM_TO_PT; isCMYK = true; }
+            else if (presetKey === "a4_p") { wPt = 210 * MM_TO_PT; hPt = 297 * MM_TO_PT; isCMYK = true; }
+            var dp = new DocumentPreset();
+            dp.width = wPt; dp.height = hPt;
+            dp.units = isCMYK ? RulerUnits.Millimeters : RulerUnits.Pixels;
+            dp.colorMode = isCMYK ? DocumentColorSpace.CMYK : DocumentColorSpace.RGB;
+            dp.title = "Bento_Grid_" + cols + "x" + rows;
+            doc = app.documents.addDocument(dp.colorMode, dp);
+            doc.artboards[0].artboardRect = [0, hPt, wPt, 0];
+        }
+
+        var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+        var left0 = ab[0], top0 = ab[1];
+        var abW = ab[2] - ab[0], abH = ab[1] - ab[3];
+
+        var usableW = Math.max(20, abW - margin * 2 - gutter * (cols - 1));
+        var usableH = Math.max(20, abH - margin * 2 - gutter * (rows - 1));
+        var cw = usableW / cols;
+        var ch = usableH / rows;
+
+        var lyrName = (style === "guides") ? "Bento_Guides" : "Bento_Grid";
+        var lyr = dmGetOrCreateLayer(doc, lyrName);
+        var grp = lyr.groupItems.add();
+        grp.name = "Bento_" + cols + "x" + rows + "_" + cells.length + "cards";
+
+        var palHex = ["#0ea5e9", "#2ed3a3", "#6366f1", "#f59e0b", "#ec4899", "#14b8a6", "#8b5cf6", "#334155"];
+        var fillCol = dmHexToRGBColor(p.fillColor || "#1e293b");
+        var strokeCol = dmHexToRGBColor(p.strokeColor || "#3bcdca");
+
+        for (var i = 0; i < cells.length; i++) {
+            var c = cells[i];
+            var x = left0 + margin + c.c * (cw + gutter);
+            var yTop = top0 - margin - c.r * (ch + gutter);
+            var w = c.cs * cw + (c.cs - 1) * gutter;
+            var h = c.rs * ch + (c.rs - 1) * gutter;
+            var rr = Math.min(radius, Math.min(w, h) * 0.45);
+
+            var rect = (rr > 0.5)
+                ? grp.pathItems.roundedRectangle(yTop, x, w, h, rr, rr)
+                : grp.pathItems.rectangle(yTop, x, w, h);
+            rect.name = "Bento_Card_" + (i + 1);
+
+            if (style === "guides") {
+                rect.filled = false; rect.stroked = false;
+                try { rect.guides = true; } catch (eG) { rect.stroked = true; rect.strokeColor = strokeCol; rect.strokeWidth = 0.75; }
+            } else if (style === "stroke") {
+                rect.filled = false; rect.stroked = true; rect.strokeColor = strokeCol; rect.strokeWidth = 1.25;
+            } else if (style === "palette") {
+                rect.filled = true; rect.fillColor = dmHexToRGBColor(palHex[i % palHex.length]); rect.stroked = false;
+            } else {
+                rect.filled = true; rect.fillColor = fillCol; rect.stroked = true; rect.strokeColor = strokeCol; rect.strokeWidth = 0.75;
+            }
+        }
+
+        try { app.executeMenuCommand("fitinwindow"); } catch (eF) {}
+        return "OK:Created Bento Grid (" + cells.length + " vector cards, " + cols + "×" + rows + ")!";
+    } catch (err) {
+        return "ERROR:" + err.message + " (line " + err.line + ")";
+    }
+}
+
+/* --- Advanced Brand Identity Kit Studio: Logo -> 8-Artboard System (v17.7.20) --- */
+function dmColorToHex(c) {
+    try {
+        if (!c) return null;
+        if (c.typename === "RGBColor") {
+            var r = Math.round(c.red), g = Math.round(c.green), b = Math.round(c.blue);
+            return "#" + ("0" + r.toString(16)).slice(-2) + ("0" + g.toString(16)).slice(-2) + ("0" + b.toString(16)).slice(-2);
+        }
+        if (c.typename === "CMYKColor") {
+            var r2 = Math.round(255 * (1 - c.cyan / 100) * (1 - c.black / 100));
+            var g2 = Math.round(255 * (1 - c.magenta / 100) * (1 - c.black / 100));
+            var b2 = Math.round(255 * (1 - c.yellow / 100) * (1 - c.black / 100));
+            return "#" + ("0" + r2.toString(16)).slice(-2) + ("0" + g2.toString(16)).slice(-2) + ("0" + b2.toString(16)).slice(-2);
+        }
+    } catch (e) {}
+    return null;
+}
+
+function dmExtractLogoColorsAI() {
+    try {
+        if (app.documents.length === 0 || !app.activeDocument.selection || app.activeDocument.selection.length === 0) {
+            return "ERROR:Select your vector logo in Illustrator first.";
+        }
+        var seen = {}, cols = [];
+        function walk(item) {
+            if (!item || cols.length >= 4) return;
+            if (item.typename === "GroupItem") {
+                for (var i = 0; i < item.pageItems.length; i++) walk(item.pageItems[i]);
+            } else if (item.typename === "CompoundPathItem") {
+                for (var j = 0; j < item.pathItems.length; j++) walk(item.pathItems[j]);
+            } else if (item.typename === "PathItem") {
+                var hx = item.filled ? dmColorToHex(item.fillColor) : (item.stroked ? dmColorToHex(item.strokeColor) : null);
+                if (hx && hx !== "#ffffff" && !seen[hx]) { seen[hx] = true; cols.push(hx); }
+            }
+        }
+        var sel = app.activeDocument.selection;
+        for (var s = 0; s < sel.length; s++) walk(sel[s]);
+        if (cols.length === 0) return "ERROR:No vector fill/stroke colors found in selection.";
+        return "OK:" + cols.join("|");
+    } catch (err) {
+        return "ERROR:" + err.message;
+    }
+}
+
+function dmExportBrandGuidelinePDF() {
+    try {
+        if (app.documents.length === 0) return "ERROR:Generate or open your Brand Identity Kit document first.";
+        var doc = app.activeDocument;
+        var outFile = File.saveDialog("Save Brand Guideline Book PDF", "*.pdf");
+        if (!outFile) return "OK:PDF export cancelled.";
+        if (outFile.name.toLowerCase().indexOf(".pdf") < 0) outFile = new File(outFile.fsName + ".pdf");
+        var opts = new PDFSaveOptions();
+        opts.preserveEditability = true;
+        opts.viewAfterSaving = true;
+        doc.saveAs(outFile, opts);
+        return "OK:Brand Guideline PDF saved to " + outFile.name + "!";
+    } catch (err) {
+        return "ERROR:" + err.message;
+    }
+}
+
+function dmGenerateBrandKitAI(payloadJSON) {
+    try {
+        var p = dmParseJSON(payloadJSON);
+        var inc = p.include || {};
+        var srcDoc = (app.documents.length > 0) ? app.activeDocument : null;
+        var srcSel = [];
+        if (srcDoc && srcDoc.selection && srcDoc.selection.length > 0) {
+            for (var si = 0; si < srcDoc.selection.length; si++) srcSel.push(srcDoc.selection[si]);
+        }
+
+        // All 10 Complete Agency Branding Checklist Artboards (1920x1080 presentation / print-ready boards)
+        var specs = [];
+        if (inc.bkSec1 !== false)  specs.push(["01_Brand_Strategy", 1280, 720, "sec1"]);
+        if (inc.bkSec2 !== false)  specs.push(["02_Logo_Identity_System", 1280, 720, "sec2"]);
+        if (inc.bkSec3 !== false)  specs.push(["03_Color_System_HEX_RGB_CMYK", 1280, 720, "sec3"]);
+        if (inc.bkSec4 !== false)  specs.push(["04_Typography_Hierarchy", 1280, 720, "sec4"]);
+        if (inc.bkSec5 !== false)  specs.push(["05_Brand_Graphics_Pattern", 1280, 720, "sec5"]);
+        if (inc.bkSec6 !== false)  specs.push(["06_Stationery_Suite", 1280, 720, "sec6"]);
+        if (inc.bkSec7 !== false)  specs.push(["07_Marketing_Social_Media", 1280, 720, "sec7"]);
+        if (inc.bkSec8 !== false)  specs.push(["08_Packaging_Design_Suite", 1280, 720, "sec8"]);
+        if (inc.bkSec9 !== false)  specs.push(["09_Brand_Applications", 1280, 720, "sec9"]);
+        if (inc.bkSec10 !== false) specs.push(["10_Brand_Guidelines_Dos_Donts", 1280, 720, "sec10"]);
+        if (specs.length === 0) return "ERROR:Select at least 1 branding section.";
+
+        var dp = new DocumentPreset();
+        dp.width = 1280; dp.height = 720;
+        dp.units = RulerUnits.Pixels;
+        dp.colorMode = DocumentColorSpace.RGB;
+        dp.title = (p.brandName || "Brand") + "_Complete_Brand_Book";
+        var doc = app.documents.addDocument(DocumentColorSpace.RGB, dp);
+
+        var seedLyr = doc.layers[0];
+        seedLyr.name = "Brand_Identity_Book";
+        var logoSeedGrp = null;
+        if (srcSel.length > 0) {
+            try {
+                logoSeedGrp = seedLyr.groupItems.add();
+                logoSeedGrp.name = "_LogoSeed";
+                for (var sk = 0; sk < srcSel.length; sk++) srcSel[sk].duplicate(logoSeedGrp, ElementPlacement.PLACEATEND);
+            } catch (eDup) { logoSeedGrp = null; }
+        }
+
+        var colP  = dmHexToRGBColor(p.primary || "#2ed3a3");
+        var colS  = dmHexToRGBColor(p.secondary || "#0ea5e9");
+        var colA  = dmHexToRGBColor(p.accent || "#f59e0b");
+        var colDk = dmHexToRGBColor(p.dark || "#0b1120");
+        var colDk2 = dmHexToRGBColor("#131c31");
+        var colLt = dmHexToRGBColor(p.light || "#f8fafc");
+        var colMuted = dmHexToRGBColor("#94a3b8");
+        var colWhite = dmHexToRGBColor("#ffffff");
+        var colRed = dmHexToRGBColor("#f43f5e");
+        var colGrn = dmHexToRGBColor("#10b981");
+        var fTitle = dmFindTextFont(p.titleFont || "Montserrat") || dmFindTextFont("Arial Bold") || dmFindTextFont("Arial");
+        var fBody  = dmFindTextFont(p.bodyFont || "Arial") || fTitle;
+        var bName  = String(p.brandName || "DESIGN360N").toUpperCase();
+
+        function addBox(grp, x, yTop, w, h, fillC, strokeC, sw, rad) {
+            var r = (rad && rad > 0) ? grp.pathItems.roundedRectangle(yTop, x, w, h, rad, rad) : grp.pathItems.rectangle(yTop, x, w, h);
+            if (fillC) { r.filled = true; r.fillColor = fillC; } else { r.filled = false; }
+            if (strokeC) { r.stroked = true; r.strokeColor = strokeC; r.strokeWidth = sw || 1; } else { r.stroked = false; }
+            return r;
+        }
+        function addT(grp, txt, x, yTop, sz, col, fObj, center) {
+            var tf = grp.textFrames.add();
+            tf.contents = String(txt || "");
+            var ca = tf.textRange.characterAttributes;
+            ca.size = Math.max(5, sz); ca.fillColor = col;
+            if (fObj) { try { ca.textFont = fObj; } catch (e) {} }
+            try { tf.textRange.paragraphAttributes.justification = center ? Justification.CENTER : Justification.LEFT; } catch (e) {}
+            tf.position = [center ? (x - tf.width / 2) : x, yTop];
+            return tf;
+        }
+        function placeLogo(grp, cx, cy, maxW, maxH) {
+            if (logoSeedGrp && logoSeedGrp.pageItems.length > 0) {
+                var lg = logoSeedGrp.duplicate(grp, ElementPlacement.PLACEATEND);
+                lg.name = "Brand_Logo";
+                var gb = lg.geometricBounds;
+                var lw = Math.max(1, gb[2] - gb[0]), lh = Math.max(1, gb[1] - gb[3]);
+                var sc = Math.min(maxW / lw, maxH / lh) * 100;
+                lg.resize(sc, sc, true, true, true, true, sc, Transformation.CENTER);
+                var gb2 = lg.geometricBounds;
+                lg.translate(cx - (gb2[0] + gb2[2]) / 2, cy - (gb2[1] + gb2[3]) / 2);
+                return lg;
+            }
+            var rSz = Math.min(maxW, maxH);
+            addBox(grp, cx - rSz / 2, cy + rSz / 2, rSz, rSz, colP, null, 0, rSz * 0.22);
+            addT(grp, bName.substring(0, 2), cx, cy + rSz * 0.22, rSz * 0.42, colDk, fTitle, true);
+            return null;
+        }
+        function slideHeader(g, x0, y0, num, title, isDark) {
+            addBox(g, x0, y0, 1280, 720, isDark ? colDk : colLt, null, 0, 0);
+            addBox(g, x0, y0, 1280, 8, colP, null, 0, 0);
+            addT(g, num + " / " + title, x0 + 48, y0 - 34, 22, isDark ? colWhite : colDk, fTitle, false);
+            addT(g, bName + " — BRAND IDENTITY SYSTEM", x0 + 1232 - 220, y0 - 38, 10, colMuted, fBody, false);
+        }
+
+        // Lay out all 10 boards in a clean 2-column grid
+        var curX = 0, curY = 0;
+        for (var i = 0; i < specs.length; i++) {
+            var sp = specs[i];
+            var abW = sp[1], abH = sp[2], key = sp[3];
+            if (i > 0 && i % 2 === 0) { curX = 0; curY -= (abH + 100); }
+            var rect = [curX, curY, curX + abW, curY - abH];
+            var abObj = (i === 0) ? doc.artboards[0] : doc.artboards.add(rect);
+            abObj.artboardRect = rect; abObj.name = sp[0];
+            curX += abW + 100;
+            var x0 = rect[0], y0 = rect[1];
+            var g = seedLyr.groupItems.add(); g.name = sp[0];
+
+            if (key === "sec1") {
+                slideHeader(g, x0, y0, "01", "BRAND STRATEGY", true);
+                // Hero Logo + Name + Tagline
+                addBox(g, x0 + 48, y0 - 92, 420, 580, colDk2, colP, 1.5, 20);
+                placeLogo(g, x0 + 258, y0 - 270, 210, 150);
+                addT(g, bName, x0 + 258, y0 - 390, 34, colWhite, fTitle, true);
+                addT(g, p.tagline || "", x0 + 258, y0 - 440, 15, colP, fBody, true);
+                addT(g, "COMPLETE BRAND GUIDELINES", x0 + 258, y0 - 595, 11, colMuted, fTitle, true);
+                // 6 Strategy Cards on right
+                var sCards = [
+                    ["BRAND STORY & POSITIONING", p.story || ""],
+                    ["MISSION & VISION", p.mission || ""],
+                    ["CORE BRAND VALUES", p.values || ""],
+                    ["BRAND PERSONALITY", p.personality || ""],
+                    ["TARGET AUDIENCE", p.audience || ""],
+                    ["TAGLINE & SLOGAN", (p.tagline || "") + " • " + (p.website || "")]
+                ];
+                for (var sc = 0; sc < 6; sc++) {
+                    var sx = x0 + 492 + (sc % 2) * 376, sy = y0 - 92 - Math.floor(sc / 2) * 200;
+                    addBox(g, sx, sy, 356, 180, colDk2, colS, 0.8, 16);
+                    addT(g, sCards[sc][0], sx + 22, sy - 26, 11, colP, fTitle, false);
+                    addT(g, sCards[sc][1], sx + 22, sy - 60, 13, colWhite, fBody, false);
+                }
+            } else if (key === "sec2") {
+                slideHeader(g, x0, y0, "02", "LOGO & IDENTITY SYSTEM", false);
+                var lCards = [
+                    [x0 + 48,  y0 - 92, 375, 275, colWhite, "PRIMARY LOGO (ON LIGHT)", false],
+                    [x0 + 452, y0 - 92, 375, 275, colDk,    "SECONDARY LOCKUP (ON DARK)", true],
+                    [x0 + 856, y0 - 92, 375, 275, colP,     "LOGO MARK / ICON & MONOGRAM", false],
+                    [x0 + 48,  y0 - 392, 576, 280, colWhite, "CLEAR SPACE GRID (MINIMUM 'X' PADDING)", false],
+                    [x0 + 654, y0 - 392, 577, 280, colDk2,   "MINIMUM SIZE & USAGE RULES (20mm Print / 64px Web)", true]
+                ];
+                for (var lc = 0; lc < lCards.length; lc++) {
+                    var ld = lCards[lc];
+                    addBox(g, ld[0], ld[1], ld[2], ld[3], ld[4], colP, 1.0, 16);
+                    if (lc < 3) placeLogo(g, ld[0] + ld[2] / 2, ld[1] - ld[3] * 0.44, ld[2] * 0.54, ld[3] * 0.48);
+                    else if (lc === 3) {
+                        addBox(g, ld[0] + 120, ld[1] - 48, ld[2] - 240, ld[3] - 110, null, colS, 1.0, 0);
+                        placeLogo(g, ld[0] + ld[2] / 2, ld[1] - ld[3] * 0.44, 170, 105);
+                    } else {
+                        placeLogo(g, ld[0] + 120, ld[1] - 125, 90, 65);
+                        addT(g, "Print Min: 20mm   |   Digital Min: 64px\nWordmark: " + bName + "\nMonogram: " + bName.substring(0, 2) + "\nAlways preserve original aspect ratio & clear space.", ld[0] + 200, ld[1] - 85, 12.5, colWhite, fBody, false);
+                    }
+                    addT(g, ld[5], ld[0] + 20, ld[1] - ld[3] + 26, 10.5, ld[6] ? colP : colDk, fTitle, false);
+                }
+            } else if (key === "sec3") {
+                slideHeader(g, x0, y0, "03", "COLOR SYSTEM (HEX • RGB • CMYK • 60-30-10 RATIO)", false);
+                var sws = [
+                    ["PRIMARY (30%)", p.primary, p.rgbPrimary, p.cmykPrimary, colP, colDk],
+                    ["SECONDARY (10%)", p.secondary, p.rgbSecondary, p.cmykSecondary, colS, colWhite],
+                    ["ACCENT (5%)", p.accent, p.rgbAccent, p.cmykAccent, colA, colDk],
+                    ["DARK NEUTRAL (40%)", p.dark, p.rgbDark, p.cmykDark, colDk, colWhite],
+                    ["LIGHT NEUTRAL (15%)", p.light, p.rgbLight, p.cmykLight, colWhite, colDk]
+                ];
+                for (var s3 = 0; s3 < sws.length; s3++) {
+                    var sx3 = x0 + 48 + s3 * 242;
+                    addBox(g, sx3, y0 - 100, 222, 340, sws[s3][4], colMuted, 0.7, 16);
+                    addT(g, sws[s3][0], sx3 + 16, y0 - 332, 10.5, sws[s3][5], fTitle, false);
+                    addT(g, String(sws[s3][1]).toUpperCase(), sx3 + 16, y0 - 356, 15, sws[s3][5], fTitle, false);
+                    addT(g, sws[s3][2] || "", sx3 + 16, y0 - 384, 9.5, sws[s3][5], fBody, false);
+                    addT(g, sws[s3][3] || "", sx3 + 16, y0 - 404, 9.5, sws[s3][5], fBody, false);
+                }
+                // Color Usage Ratio Bar (60 / 30 / 10)
+                addT(g, "COLOR USAGE RATIO (60% NEUTRALS • 30% PRIMARY • 10% SECONDARY / ACCENT)", x0 + 48, y0 - 485, 12, colDk, fTitle, false);
+                addBox(g, x0 + 48, y0 - 520, 710, 120, colDk, null, 0, 12);
+                addT(g, "60% NEUTRAL BASE", x0 + 403, y0 - 570, 15, colWhite, fTitle, true);
+                addBox(g, x0 + 766, y0 - 520, 355, 120, colP, null, 0, 12);
+                addT(g, "30% PRIMARY", x0 + 943, y0 - 570, 14, colDk, fTitle, true);
+                addBox(g, x0 + 1129, y0 - 520, 103, 120, colA, null, 0, 12);
+                addT(g, "10%", x0 + 1180, y0 - 570, 13, colDk, fTitle, true);
+            } else if (key === "sec4") {
+                slideHeader(g, x0, y0, "04", "TYPOGRAPHY & HIERARCHY SYSTEM", true);
+                addBox(g, x0 + 48, y0 - 95, 560, 575, colDk2, colP, 1.2, 18);
+                addT(g, "Aa", x0 + 90, y0 - 135, 140, colP, fTitle, false);
+                addT(g, "PRIMARY DISPLAY: " + (p.titleFont || "Montserrat").toUpperCase(), x0 + 90, y0 - 330, 14, colP, fTitle, false);
+                addT(g, "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 !@#$%&*", x0 + 90, y0 - 368, 19, colWhite, fTitle, false);
+                addT(g, "WEIGHTS: Regular (400) • Medium (500) • Bold (700) • Black (900)", x0 + 90, y0 - 585, 11, colMuted, fBody, false);
+
+                addBox(g, x0 + 636, y0 - 95, 596, 575, colDk2, colS, 1.2, 18);
+                addT(g, "TYPOGRAPHY HIERARCHY & BODY FONT (" + (p.bodyFont || "Arial") + ")", x0 + 670, y0 - 125, 12, colS, fTitle, false);
+                addT(g, "H1 — Display Headline (48pt Bold)", x0 + 670, y0 - 175, 28, colWhite, fTitle, false);
+                addT(g, "H2 — Section Heading (28pt SemiBold)", x0 + 670, y0 - 245, 20, colP, fTitle, false);
+                addT(g, "H3 — Card Subheading (18pt Medium)", x0 + 670, y0 - 305, 15, colWhite, fTitle, false);
+                addT(g, "Body Copy (12pt Regular) — Clean, balanced line-height for print\ndocuments, corporate profiles, websites, and social media graphics.", x0 + 670, y0 - 365, 12.5, colMuted, fBody, false);
+                addT(g, "CAPTION / METADATA (9PT UPPERCASE TRACKED)", x0 + 670, y0 - 465, 10, colA, fTitle, false);
+            } else if (key === "sec5") {
+                slideHeader(g, x0, y0, "05", "BRAND GRAPHICS, PATTERN & MOTIFS", true);
+                // Pattern Grid Tile
+                addBox(g, x0 + 48, y0 - 95, 580, 575, colDk2, colP, 1.2, 18);
+                addT(g, "BRAND PATTERN TILE", x0 + 72, y0 - 118, 12, colP, fTitle, false);
+                for (var py = 0; py < 4; py++) {
+                    for (var px = 0; px < 5; px++) {
+                        addBox(g, x0 + 82 + px * 104, y0 - 160 - py * 116, 84, 84, (px + py) % 2 === 0 ? colP : colS, null, 0, 18);
+                    }
+                }
+                // Shapes, Iconography & Photo Direction
+                addBox(g, x0 + 656, y0 - 95, 576, 274, colDk2, colS, 1.0, 18);
+                addT(g, "GRAPHIC MOTIFS & ICONOGRAPHY STYLE", x0 + 682, y0 - 122, 12, colS, fTitle, false);
+                addBox(g, x0 + 686, y0 - 175, 90, 90, colP, null, 0, 45);
+                addBox(g, x0 + 802, y0 - 175, 90, 90, colS, null, 0, 18);
+                addBox(g, x0 + 918, y0 - 175, 90, 90, null, colA, 4, 18);
+                addBox(g, x0 + 1034, y0 - 175, 160, 90, colA, null, 0, 45);
+
+                addBox(g, x0 + 656, y0 - 396, 576, 274, colLt, null, 0, 18);
+                addT(g, "PHOTOGRAPHY & TEXTURE DIRECTION", x0 + 682, y0 - 426, 12, colDk, fTitle, false);
+                addT(g, "• Clean overhead softbox lighting with high-contrast micro-textures\n• Editorial framing with generous negative space for typography\n• Consistent color grading anchored to Primary & Dark Neutral tones\n• 2px geometric stroke iconography with rounded line caps", x0 + 682, y0 - 472, 13, colDk, fBody, false);
+            } else if (key === "sec6") {
+                slideHeader(g, x0, y0, "06", "COMPLETE STATIONERY SUITE (CARD • LETTERHEAD • ENVELOPE • INVOICE • ID • EMAIL SIG)", false);
+                // Business Card Front + Back
+                addBox(g, x0 + 48, y0 - 95, 250, 155, colDk, colP, 1, 10);
+                placeLogo(g, x0 + 173, y0 - 158, 95, 65);
+                addT(g, bName, x0 + 173, y0 - 210, 11, colWhite, fTitle, true);
+                addBox(g, x0 + 312, y0 - 95, 250, 155, colWhite, colMuted, 0.7, 10);
+                addBox(g, x0 + 312, y0 - 95, 10, 155, colP, null, 0, 0);
+                addT(g, bName + "\n" + (p.phone || "") + "\n" + (p.email || "") + "\n" + (p.website || ""), x0 + 334, y0 - 122, 9.5, colDk, fBody, false);
+                // DL Envelope
+                addBox(g, x0 + 48, y0 - 270, 514, 180, colWhite, colMuted, 0.7, 10);
+                addBox(g, x0 + 48, y0 - 436, 514, 14, colP, null, 0, 0);
+                placeLogo(g, x0 + 108, y0 - 322, 68, 42);
+                addT(g, "DL ENVELOPE (220×110mm)\n" + (p.address || ""), x0 + 158, y0 - 306, 10, colDk, fBody, false);
+                // Email Signature & Notepad
+                addBox(g, x0 + 48, y0 - 470, 514, 195, colDk2, colS, 1, 12);
+                placeLogo(g, x0 + 115, y0 - 565, 80, 60);
+                addT(g, "EMAIL SIGNATURE TEMPLATE\n" + bName + " • Creative Team\n" + (p.phone || "") + " | " + (p.email || "") + "\n" + (p.website || ""), x0 + 185, y0 - 510, 11.5, colWhite, fBody, false);
+                // A4 Letterhead + Invoice Preview (Right)
+                addBox(g, x0 + 588, y0 - 95, 315, 570, colWhite, colMuted, 0.8, 10);
+                addBox(g, x0 + 588, y0 - 95, 315, 14, colP, null, 0, 0);
+                placeLogo(g, x0 + 642, y0 - 142, 65, 40);
+                addT(g, "LETTERHEAD & INVOICE / QUOTATION\n\nInvoice #: INV-2026-001\nBill To: Client Company Ltd.\n\n01. Brand Identity Design ........ 100%\n02. Stationery & Print Kit ........ 100%", x0 + 610, y0 - 190, 10, colDk, fBody, false);
+                addBox(g, x0 + 588, y0 - 630, 315, 35, colDk, null, 0, 0);
+                // Staff ID Card & Folder
+                addBox(g, x0 + 928, y0 - 95, 304, 570, colWhite, colP, 1.2, 16);
+                addBox(g, x0 + 928, y0 - 95, 304, 130, colDk, null, 0, 12);
+                placeLogo(g, x0 + 1080, y0 - 160, 110, 72);
+                addBox(g, x0 + 1010, y0 - 260, 140, 140, colLt, colP, 3, 70);
+                addT(g, "STAFF ID CARD\n" + bName + "\nID #001 • Authorized", x0 + 1080, y0 - 430, 13, colDk, fTitle, true);
+            } else if (key === "sec7") {
+                slideHeader(g, x0, y0, "07", "MARKETING & SOCIAL MEDIA KIT (FB • IG POST/STORY • BANNER • FLYER)", true);
+                // IG Square Post
+                addBox(g, x0 + 48, y0 - 95, 360, 360, colDk2, colP, 2, 18);
+                placeLogo(g, x0 + 228, y0 - 215, 140, 100);
+                addT(g, bName, x0 + 228, y0 - 305, 24, colWhite, fTitle, true);
+                addT(g, "INSTAGRAM / FB POST (1080×1080)", x0 + 228, y0 - 418, 10, colP, fTitle, true);
+                // IG Story Vertical
+                addBox(g, x0 + 432, y0 - 95, 240, 570, colP, null, 0, 18);
+                placeLogo(g, x0 + 552, y0 - 280, 130, 95);
+                addT(g, "IG STORY\n1080×1920", x0 + 552, y0 - 420, 16, colDk, fTitle, true);
+                // FB Cover Banner
+                addBox(g, x0 + 696, y0 - 95, 536, 210, colDk2, colS, 2, 16);
+                placeLogo(g, x0 + 805, y0 - 200, 120, 90);
+                addT(g, bName + "\n" + (p.tagline || "") + "\nFACEBOOK COVER (851×315)", x0 + 900, y0 - 155, 15, colWhite, fTitle, false);
+                // Flyer & Poster
+                addBox(g, x0 + 696, y0 - 330, 536, 335, colLt, colP, 1.5, 16);
+                addBox(g, x0 + 696, y0 - 330, 536, 60, colDk, null, 0, 12);
+                addT(g, "PROMOTIONAL FLYER / POSTER / AD TEMPLATE", x0 + 964, y0 - 352, 13, colP, fTitle, true);
+                placeLogo(g, x0 + 964, y0 - 480, 160, 105);
+                addT(g, (p.website || "") + "  •  " + (p.phone || ""), x0 + 964, y0 - 620, 13, colDk, fTitle, true);
+                // Promo Strip bottom left
+                addBox(g, x0 + 48, y0 - 480, 360, 185, colS, null, 0, 16);
+                addT(g, "PROMO WEB BANNER\n" + (p.tagline || ""), x0 + 228, y0 - 548, 15, colWhite, fTitle, true);
+            } else if (key === "sec8") {
+                slideHeader(g, x0, y0, "08", "PACKAGING DESIGN SUITE (BOX • BAG • LABEL • TAG • STICKER • THANK YOU)", false);
+                var pCards = [
+                    [x0 + 48,  y0 - 95, 375, 275, colDk,    "PRODUCT BOX DESIGN", true],
+                    [x0 + 452, y0 - 95, 375, 275, colP,     "SHOPPING BAG", false],
+                    [x0 + 856, y0 - 95, 375, 275, colWhite, "PRODUCT LABEL & STICKER", false],
+                    [x0 + 48,  y0 - 395, 375, 275, colWhite, "HANG TAG (50×90mm)", false],
+                    [x0 + 452, y0 - 395, 375, 275, colDk2,   "THANK YOU CARD", true],
+                    [x0 + 856, y0 - 395, 375, 275, colS,     "BRANDED TISSUE PAPER PATTERN", true]
+                ];
+                for (var pc = 0; pc < pCards.length; pc++) {
+                    var pd = pCards[pc];
+                    addBox(g, pd[0], pd[1], pd[2], pd[3], pd[4], colP, 1.0, 16);
+                    placeLogo(g, pd[0] + pd[2] / 2, pd[1] - pd[3] * 0.44, pd[2] * 0.48, pd[3] * 0.44);
+                    addT(g, pd[5], pd[0] + pd[2] / 2, pd[1] - pd[3] + 28, 11, pd[6] ? colWhite : colDk, fTitle, true);
+                }
+            } else if (key === "sec9") {
+                slideHeader(g, x0, y0, "09", "BRAND APPLICATIONS (SIGNBOARD • STOREFRONT • OFFICE • UNIFORM • VEHICLE • BOOTH)", true);
+                var aCards = [
+                    [x0 + 48,  y0 - 95, 576, 175, colDk2, "SHOP SIGNBOARD & STOREFRONT FASCIA"],
+                    [x0 + 656, y0 - 95, 576, 175, colP,   "OFFICE RECEPTION WALL BRANDING"],
+                    [x0 + 48,  y0 - 295, 375, 375, colDk2, "STAFF UNIFORM & MERCH"],
+                    [x0 + 452, y0 - 295, 375, 375, colS,   "DELIVERY VEHICLE WRAP"],
+                    [x0 + 856, y0 - 295, 375, 375, colLt,  "EXHIBITION BOOTH BACKDROP"]
+                ];
+                for (var ac = 0; ac < aCards.length; ac++) {
+                    var ad = aCards[ac];
+                    var isLtC = (ac === 1 || ac === 4);
+                    addBox(g, ad[0], ad[1], ad[2], ad[3], ad[4], colP, 1.0, 16);
+                    placeLogo(g, ad[0] + ad[2] / 2, ad[1] - ad[3] * 0.44, ad[2] * 0.44, ad[3] * 0.42);
+                    addT(g, ad[5], ad[0] + ad[2] / 2, ad[1] - ad[3] + 28, 11, isLtC ? colDk : colWhite, fTitle, true);
+                }
+            } else if (key === "sec10") {
+                slideHeader(g, x0, y0, "10", "BRAND GUIDELINES — LOGO DO'S, DON'TS & CONSISTENCY RULES", false);
+                addBox(g, x0 + 48, y0 - 95, 576, 575, colWhite, colGrn, 2.0, 18);
+                addT(g, "✓  LOGO DO'S (CORRECT USAGE)", x0 + 78, y0 - 125, 16, colGrn, fTitle, false);
+                placeLogo(g, x0 + 336, y0 - 260, 200, 130);
+                addT(g, "✓ Keep original proportions & vector sharpness\n✓ Maintain clear space around all 4 sides\n✓ Use official Primary, Dark, or White lockups\n✓ Apply approved brand fonts & 60-30-10 color ratio\n✓ Export CMYK 300 DPI for print, RGB for digital", x0 + 78, y0 - 390, 13, colDk, fBody, false);
+
+                addBox(g, x0 + 656, y0 - 95, 576, 575, colWhite, colRed, 2.0, 18);
+                addT(g, "✕  LOGO DON'TS (NEVER DO)", x0 + 686, y0 - 125, 16, colRed, fTitle, false);
+                addT(g, "✕ Never stretch, squash, or skew the logo\n✕ Never rotate or tilt the primary mark\n✕ Never apply unapproved colors or gradients\n✕ Never add heavy drop shadows or outer glows\n✕ Never place dark logo on dark or busy photos\n✕ Never crop or crowd text inside clear space", x0 + 686, y0 - 210, 13.5, colDk, fBody, false);
+                addBox(g, x0 + 686, y0 - 520, 516, 115, colDk, null, 0, 14);
+                addT(g, "OFFICIAL BRAND CONTACT\n" + bName + " • " + (p.website || "") + "\n" + (p.email || "") + " • " + (p.phone || ""), x0 + 944, y0 - 548, 12, colP, fTitle, true);
+            }
+        }
+
+        if (logoSeedGrp) { try { logoSeedGrp.remove(); } catch (eRem) {} }
+        try { app.executeMenuCommand("fitall"); } catch (eFit) {}
+        return "OK:Generated Complete " + specs.length + "-Section Brand Identity Book (" + (srcSel.length > 0 ? "Your Selected Logo Applied!" : "Monogram Applied") + ")!";
+    } catch (err) {
+        return "ERROR:" + err.message + " (line " + err.line + ")";
+    }
+}

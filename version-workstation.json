@@ -21,8 +21,10 @@
     "client/js/stroke-ui.js",
     "client/js/update-check.js",
     "host/index.jsx",
-    "CSXS/manifest.xml"
+    "CSXS/manifest.xml",
+    "client/js/bento-grid.js",
+    "client/js/brand-kit.js"
   ],
-  "notes": "Apparel 3D: sculpted ghost-mannequin torso (athletic V-taper, pec/belly anatomy, armpit tension folds, waist wrinkles, hem drape), circular ribbed crewneck, HD fabric drape shader, 3-point studio rig, dark default tee. (updateSizeHud call removed again before release: still undefined in this ZIP, would have broken 360 export save.)",
-  "version": "17.7.17"
+  "notes": "NEW: Bento Grid System + Brand Identity Kit Studio (10 sections); Apparel 3D photorealistic 2D-to-3D ghost-mannequin relief engine (tee_front/back textures). NOTE: the two tee PNGs are NOT in the update file list — the updater downloads text only (r.text + utf8 write), so binary PNGs would corrupt/fail the whole update; they ship inside the Drive ZIP for fresh installs, and updaters fall back gracefully to the procedural mesh. (updateSizeHud call removed again before release: still undefined in this ZIP.)",
+  "version": "17.7.21"
 }

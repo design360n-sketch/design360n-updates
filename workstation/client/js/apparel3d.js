@@ -423,6 +423,209 @@
     return finalizeMesh(pos, nrm, uv, idx);
   }
 
+
+  // ==========================================================================
+  // 1B. PHOTOREALISTIC 2D->3D GHOST-MANNEQUIN RELIEF ENGINE (v17.7.18)
+  // Turns real studio front/back ghost-mannequin photos into interactive 3D
+  // curved cloth with live Illustrator artwork + real wrinkle multiply/screen!
+  // ==========================================================================
+  var PHOTO_TEE = { front: null, back: null, ready: false, listeners: [] };
+  function loadPhotoTeeAssets(frontUrl, backUrl) {
+    if (typeof Image === "undefined") return;
+    var loaded = 0;
+    function onOne() {
+      loaded++;
+      if (loaded >= 2 && PHOTO_TEE.front && PHOTO_TEE.back) {
+        PHOTO_TEE.ready = true;
+        PHOTO_TEE.listeners.forEach(function (fn) { try { fn(); } catch (e) {} });
+        PHOTO_TEE.listeners = [];
+      }
+    }
+    var imF = new Image();
+    imF.onload = function () { PHOTO_TEE.front = imF; onOne(); };
+    imF.onerror = function () { onOne(); };
+    imF.src = frontUrl || "assets/tee_front.png";
+
+    var imB = new Image();
+    imB.onload = function () { PHOTO_TEE.back = imB; onOne(); };
+    imB.onerror = function () { onOne(); };
+    imB.src = backUrl || "assets/tee_back.png";
+  }
+  loadPhotoTeeAssets();
+
+  function buildPhotoReliefMesh(spec) {
+    var pos = [], nrm = [], uv = [], idx = [];
+    function pushV(x, y, z, u, v) { pos.push(x, y, z); nrm.push(0, 0, 1); uv.push(u, v); return (pos.length / 3) - 1; }
+    function addQuad(a, b, c, d) { idx.push(a, b, c, a, c, d); }
+
+    var sizeVis = 1.0;
+    if (spec.sizeCode === "XS") sizeVis = 0.88;
+    else if (spec.sizeCode === "S") sizeVis = 0.93;
+    else if (spec.sizeCode === "M") sizeVis = 0.97;
+    else if (spec.sizeCode === "L") sizeVis = 1.01;
+    else if (spec.sizeCode === "XL") sizeVis = 1.05;
+    else if (spec.sizeCode === "2XL") sizeVis = 1.10;
+    else if (spec.sizeCode === "3XL") sizeVis = 1.15;
+
+    var halfW = 1.04 * Math.min(1.12, Math.max(0.88, spec.bodyW)) * sizeVis;
+    var halfH = 1.04 * Math.min(1.10, Math.max(0.78, spec.bodyH)) * sizeVis;
+    var segX = 32, segY = 32;
+
+    // Front 3D Curved Cloth Relief (UV x: 0.0 -> 0.5)
+    var fGrid = [];
+    for (var j = 0; j <= segY; j++) {
+      var tv = j / segY, row = [];
+      var ny = 1 - tv * 2;
+      for (var i = 0; i <= segX; i++) {
+        var tu = i / segX;
+        var nx = tu * 2 - 1;
+        var domeX = Math.cos(nx * Math.PI * 0.48);
+        var domeY = Math.cos(ny * Math.PI * 0.42);
+        var chestLift = Math.exp(-Math.pow((tv - 0.34) / 0.28, 2.0)) * 0.065 * Math.max(0, domeX);
+        var z = (0.16 * domeX * domeY + chestLift) * sizeVis;
+        row.push(pushV(nx * halfW, ny * halfH, z, tu * 0.5, tv));
+      }
+      fGrid.push(row);
+    }
+    for (var j2 = 0; j2 < segY; j2++) {
+      for (var i2 = 0; i2 < segX; i2++) {
+        addQuad(fGrid[j2][i2], fGrid[j2 + 1][i2], fGrid[j2 + 1][i2 + 1], fGrid[j2][i2 + 1]);
+      }
+    }
+
+    // Back 3D Curved Cloth Relief (UV x: 0.5 -> 1.0, facing -Z)
+    var bGrid = [];
+    for (var jb = 0; jb <= segY; jb++) {
+      var tvb = jb / segY, brow = [];
+      var nyb = 1 - tvb * 2;
+      for (var ib = 0; ib <= segX; ib++) {
+        var tub = ib / segX;
+        var nxb = tub * 2 - 1;
+        var domeXb = Math.cos(nxb * Math.PI * 0.48);
+        var domeYb = Math.cos(nyb * Math.PI * 0.42);
+        var zb = -(0.14 * domeXb * domeYb + 0.015) * sizeVis;
+        brow.push(pushV(nxb * halfW, nyb * halfH, zb, 1.0 - tub * 0.5, tvb));
+      }
+      bGrid.push(brow);
+    }
+    for (var jb2 = 0; jb2 < segY; jb2++) {
+      for (var ib2 = 0; ib2 < segX; ib2++) {
+        addQuad(bGrid[jb2][ib2], bGrid[jb2][ib2 + 1], bGrid[jb2 + 1][ib2 + 1], bGrid[jb2 + 1][ib2]);
+      }
+    }
+
+    return finalizeMesh(pos, nrm, uv, idx);
+  }
+
+  function renderPhotoTeeSide(ctx, baseImg, dstX, dstY, dstW, dstH, state, isBack) {
+    var sc = document.createElement("canvas");
+    sc.width = dstW; sc.height = dstH;
+    var sctx = sc.getContext("2d");
+
+    sctx.drawImage(baseImg, 0, 0, dstW, dstH);
+
+    var bodyHex = state.bodyColor || "#14161a";
+    sctx.globalCompositeOperation = "source-atop";
+    sctx.fillStyle = bodyHex;
+    sctx.fillRect(0, 0, dstW, dstH);
+
+    // Multiply real studio fabric wrinkles onto tint color
+    sctx.globalCompositeOperation = "multiply";
+    sctx.drawImage(baseImg, 0, 0, dstW, dstH);
+
+    // Preserve bright studio softbox shoulder & crease highlights (critical for dark/black tees!)
+    var rC = parseInt(bodyHex.slice(1, 3), 16) || 20;
+    var gC = parseInt(bodyHex.slice(3, 5), 16) || 22;
+    var bC = parseInt(bodyHex.slice(5, 7), 16) || 26;
+    var lum = (0.299 * rC + 0.587 * gC + 0.114 * bC) / 255;
+    sctx.globalCompositeOperation = "screen";
+    sctx.globalAlpha = (lum < 0.35) ? 0.12 : 0.06;
+    sctx.drawImage(baseImg, 0, 0, dstW, dstH);
+    sctx.globalAlpha = 1.0;
+
+    // Composite Artwork (Illustrator Sync OR 2D Editor Layers OR Sleek Studio Wave Demo)
+    var artC = document.createElement("canvas");
+    artC.width = dstW; artC.height = dstH;
+    var actx = artC.getContext("2d");
+
+    if (state.fullPatternImg) {
+      var img = state.fullPatternImg;
+      var srcX = isBack ? img.width * 0.50 : 0;
+      var srcW = img.width * 0.50;
+      actx.drawImage(img, srcX, 0, srcW, img.height, dstW * 0.18, dstH * 0.14, dstW * 0.64, dstH * 0.78);
+    } else if (state.layers && state.layers.length > 0) {
+      var reg = isBack ? UV_REGIONS.back : UV_REGIONS.front;
+      for (var i = 0; i < state.layers.length; i++) {
+        var L = state.layers[i];
+        var inSide = isBack ? (L.x >= 0.50) : (L.x < 0.50);
+        if (!inSide) continue;
+        var relX = (L.x - reg.x) / reg.w;
+        var relY = (L.y - reg.y) / reg.h;
+        var relW = L.w / reg.w;
+        var relH = L.h / reg.h;
+        actx.save();
+        actx.translate(dstW * (0.25 + relX * 0.50), dstH * (0.14 + relY * 0.76));
+        actx.rotate((L.rot || 0) * Math.PI / 180);
+        actx.scale(L.flipH ? -1 : 1, L.flipV ? -1 : 1);
+        actx.globalAlpha = L.opacity !== undefined ? L.opacity : 1;
+        var lw = relW * dstW * 0.52, lh = relH * dstH * 0.72;
+        if (L.type === "image" && L.img) actx.drawImage(L.img, -lw / 2, -lh / 2, lw, lh);
+        else if (L.type === "rect") { actx.fillStyle = L.color || "#f8f5ef"; actx.fillRect(-lw / 2, -lh / 2, lw, lh); }
+        else if (L.type === "text") {
+          actx.fillStyle = L.color || "#ffffff";
+          actx.font = "900 " + Math.round(lh * 0.72) + "px Inter, Segoe UI, sans-serif";
+          actx.textAlign = "center"; actx.textBaseline = "middle";
+          actx.fillText(L.text || "DESIGN360N", 0, 0);
+        }
+        actx.restore();
+      }
+    } else if (state.showDemoArtwork) {
+      actx.save();
+      if (!isBack) {
+        actx.strokeStyle = (lum < 0.45) ? "rgba(255,255,255,0.46)" : "rgba(15,23,42,0.38)";
+        actx.lineWidth = 2.2;
+        for (var w = 0; w < 26; w++) {
+          actx.beginPath();
+          var y0 = dstH * (0.36 + w * 0.019);
+          actx.moveTo(dstW * 0.24, y0 + Math.sin(w * 0.22) * 40);
+          actx.bezierCurveTo(
+            dstW * 0.42, y0 - 75 + w * 2.5,
+            dstW * 0.58, y0 + 90 - w * 2.3,
+            dstW * 0.76, y0 - 18 + Math.cos(w * 0.2) * 34
+          );
+          actx.stroke();
+        }
+      } else {
+        actx.fillStyle = (lum < 0.45) ? "rgba(248,250,252,0.72)" : "rgba(15,23,42,0.72)";
+        actx.font = "800 26px Inter, Segoe UI, sans-serif";
+        actx.textAlign = "center";
+        actx.fillText("DESIGN360N", dstW * 0.50, dstH * 0.24);
+      }
+      actx.restore();
+    }
+
+    sctx.globalCompositeOperation = "source-atop";
+    sctx.drawImage(artC, 0, 0);
+
+    // Multiply real photographic cloth folds OVER artwork so artwork conforms naturally to fabric!
+    sctx.globalCompositeOperation = "multiply";
+    sctx.globalAlpha = 0.75;
+    sctx.drawImage(baseImg, 0, 0, dstW, dstH);
+
+    // Subtle specular highlight over artwork
+    sctx.globalCompositeOperation = "screen";
+    sctx.globalAlpha = (lum < 0.35) ? 0.08 : 0.05;
+    sctx.drawImage(baseImg, 0, 0, dstW, dstH);
+
+    // Crisp original alpha mask
+    sctx.globalCompositeOperation = "destination-in";
+    sctx.globalAlpha = 1.0;
+    sctx.drawImage(baseImg, 0, 0, dstW, dstH);
+
+    ctx.clearRect(dstX, dstY, dstW, dstH);
+    ctx.drawImage(sc, dstX, dstY, dstW, dstH);
+  }
+
   // ==========================================================================
   // 2. HIGH-POLY PROCEDURAL 3D BOTTLE & TUMBLER LATHE ENGINE (OWALA + 7 MORE!)
   // ==========================================================================
@@ -665,6 +868,14 @@
   }
 
   function renderAtlas(cv, state) {
+    if (state.studioMode !== "bottle" && PHOTO_TEE.ready && PHOTO_TEE.front && PHOTO_TEE.back) {
+      var pctx = cv.getContext("2d");
+      var pw = cv.width, ph = cv.height;
+      pctx.clearRect(0, 0, pw, ph);
+      renderPhotoTeeSide(pctx, PHOTO_TEE.front, 0, 0, pw / 2, ph, state, false);
+      renderPhotoTeeSide(pctx, PHOTO_TEE.back,  pw / 2, 0, pw / 2, ph, state, true);
+      return;
+    }
     var ctx = cv.getContext("2d");
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
@@ -875,7 +1086,7 @@
     "varying vec3 vNrm; varying vec3 vWorldPos; varying vec2 vUV;",
     "uniform sampler2D uTex; uniform float uWrinkle; uniform float uFoldShadow; uniform float uSheen; uniform float uSpecPow;",
     "void main() {",
-    "  vec4 tex = texture2D(uTex, vUV);",
+    "  vec4 tex = texture2D(uTex, vUV); if (tex.a < 0.08) discard;",
     "  vec3 N = normalize(vNrm);",
     "  float foldAO = 1.0;",
     "  if (uWrinkle > 0.01) {",
@@ -944,6 +1155,14 @@
     this._dragging = false; this._lastX = 0; this._lastY = 0; this.isRecording = false;
 
     if (this.gl) this._initGL();
+    var selfV = this;
+    if (!PHOTO_TEE.ready) {
+      PHOTO_TEE.listeners.push(function () {
+        selfV.rebuildModel();
+        selfV.refreshTexture();
+        selfV.renderFrame(false);
+      });
+    }
     this.rebuildModel();
     this.refreshTexture();
     this._bindInteraction();
@@ -978,6 +1197,8 @@
   Apparel3DViewer.prototype.rebuildModel = function () {
     if (this.state.studioMode === "bottle") {
       this.mesh = buildBottleMesh(getBottleSpec(this.state.bottleType, this.state.bottleVol));
+    } else if (PHOTO_TEE.ready && PHOTO_TEE.front && PHOTO_TEE.back) {
+      this.mesh = buildPhotoReliefMesh(getGarmentSpec(this.state.garmentType, this.state.sizeCode));
     } else {
       this.mesh = buildGarmentMesh(getGarmentSpec(this.state.garmentType, this.state.sizeCode));
     }
@@ -1053,7 +1274,7 @@
       gl.uniform1f(r.uSheen, fp[0]);
       gl.uniform1f(r.uSpecPow, fp[1]);
     } else {
-      gl.uniform1f(r.uWrinkle, this.state.wrinkles);
+      gl.uniform1f(r.uWrinkle, PHOTO_TEE.ready ? 0.0 : this.state.wrinkles);
       gl.uniform1f(r.uFoldShadow, this.state.foldShadow);
       var sMap = { cotton: 0.14, heavyweight: 0.10, mesh: 0.22, fleece: 0.08, silk: 0.42 };
       gl.uniform1f(r.uSheen, sMap[this.state.material] || 0.14);
@@ -1193,6 +1414,6 @@
     getGarmentSpec: getGarmentSpec,
     getBottleSpec: getBottleSpec,
     render2DDielineWorkspace: render2DDielineWorkspace,
-    Apparel3DViewer: Apparel3DViewer
+    Apparel3DViewer: Apparel3DViewer, loadPhotoTeeAssets: loadPhotoTeeAssets
   };
 })(typeof window !== "undefined" ? window : global);

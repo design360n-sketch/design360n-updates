@@ -393,6 +393,8 @@ select, input[type="number"], input[type="text"], input[type="password"] {
 .hc-pro { background: linear-gradient(135deg, #10b981, #06b6d4); }
 .hc-bottle { background: linear-gradient(135deg, #ec4899, #8b5cf6); }
 .hc-seal { background: linear-gradient(135deg, #f43f5e, #f59e0b); }
+.hc-bento { background: linear-gradient(135deg, #06b6d4, #10b981); }
+.hc-brand { background: linear-gradient(135deg, #f59e0b, #ec4899); }
 .home-card-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .home-card-name { font-size: 13.5px; font-weight: 700; color: #f8fafc; }
 .home-card-desc {
