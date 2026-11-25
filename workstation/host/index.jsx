@@ -3136,6 +3136,75 @@ function dmExportBrandGuidelinePDF() {
     }
 }
 
+function dmExportSelectedLogo() {
+    /* Exports the CURRENT SELECTION (the logo the user is working on) as a
+     * transparent PNG into the panel temp folder, so Brand Kit Pro can stamp
+     * the REAL logo onto every mockup photo. Returns "OK:<full path>" or an
+     * "ERROR:<code>" string the panel shows to the user. Runs from the CEP
+     * evaluateScript context, like every other dm* function here.
+     * - artboard clipped to the artwork bounds, PNG24 with transparency on.
+     * - long side at least 1000px (export scale raised when the artwork is
+     *   small; capped at 800% so a tiny mark cannot explode the export).
+     * - the user's document is never modified: selection is DUPLICATED into
+     *   a throwaway temp document, which is closed without saving.
+     * Known limit: cross-document duplicate() is the standard Illustrator
+     * scripting pattern, but it was NOT live-tested in real Illustrator —
+     * if it throws, the panel reports the exact error instead of faking it. */
+    try {
+        if (app.documents.length === 0) return "ERROR:NO_DOC";
+        var doc = app.activeDocument;
+        if (!doc.selection || doc.selection.length === 0) return "ERROR:NO_SELECTION";
+        var sel = doc.selection;
+        var x0 = 1e9, y0 = -1e9, x1 = -1e9, y1 = 1e9, i;
+        for (i = 0; i < sel.length; i++) {
+            var gb = sel[i].geometricBounds;
+            if (gb[0] < x0) x0 = gb[0];
+            if (gb[1] > y0) y0 = gb[1];
+            if (gb[2] > x1) x1 = gb[2];
+            if (gb[3] < y1) y1 = gb[3];
+        }
+        var wPt = Math.max(1, x1 - x0), hPt = Math.max(1, y0 - y1);
+        var tmpDir = new Folder(Folder.temp + "/Design360n_BrandKit_Mockups");
+        if (!tmpDir.exists) tmpDir.create();
+        var outFile = new File(tmpDir.fsName + "/logo_export.png");
+        var dp = new DocumentPreset();
+        dp.width = wPt; dp.height = hPt; dp.units = RulerUnits.Points; dp.colorMode = DocumentColorSpace.RGB;
+        dp.title = "Design360n_Logo_Export";
+        var tmp = app.documents.addDocument(DocumentColorSpace.RGB, dp);
+        try { tmp.artboards[0].artboardRect = [x0, y0, x1, y1]; } catch (eAb) {}
+        var okDup = false;
+        try {
+            for (i = 0; i < sel.length; i++) sel[i].duplicate(tmp.layers[0], ElementPlacement.PLACEATEND);
+            okDup = true;
+        } catch (eDup) { okDup = false; }
+        if (!okDup) {
+            try { tmp.close(SaveOptions.DONOTSAVECHANGES); } catch (eC) {}
+            return "ERROR:DUPLICATE_FAILED";
+        }
+        var longSide = Math.max(wPt, hPt);
+        var scalePct = Math.max(100, Math.ceil(1000 / longSide * 100));
+        if (scalePct > 800) scalePct = 800;
+        var opts = new ExportOptionsPNG24();
+        opts.transparency = true;
+        opts.antiAliasing = true;
+        opts.artBoardClipping = true;
+        opts.horizontalScale = scalePct;
+        opts.verticalScale = scalePct;
+        try {
+            tmp.exportFile(outFile, ExportType.PNG24, opts);
+        } catch (eEx) {
+            try { tmp.close(SaveOptions.DONOTSAVECHANGES); } catch (eC2) {}
+            return "ERROR:EXPORT_FAILED";
+        }
+        try { tmp.close(SaveOptions.DONOTSAVECHANGES); } catch (eC3) {}
+        try { app.activeDocument = doc; } catch (eAc) {}
+        if (!outFile.exists) return "ERROR:EXPORT_FAILED";
+        return "OK:" + outFile.fsName;
+    } catch (err) {
+        return "ERROR:" + err.message;
+    }
+}
+
 function dmGenerateBrandKitAI(payloadJSON) {
     try {
         var p = dmParseJSON(payloadJSON);
@@ -3144,10 +3213,47 @@ function dmGenerateBrandKitAI(payloadJSON) {
          * by the panel (Openverse). dmPlaceMockup places the photo contain-fit
          * inside a card zone with a subtle 10% brand-color tint so stock
          * photos feel brand-owned. Returns false on ANY problem (missing
-         * file, bad image, place error) so callers fall back to vector art. */
+         * file, bad image, place error) so callers fall back to vector art.
+         * --- Logo-on-mockup stamping (Brand Kit Pro) ---
+         * A blank photo is useless in a guideline: every placed photo gets
+         * the USER'S logo stamped on it by dmStampLogoOnMockup, following
+         * the kit's own guideline rules (sec2: clearspace = x-height,
+         * min size 20mm print / 64px web, never distort, right variant
+         * per background):
+         * - UNIFORM scale only (same % X and Y) — aspect ratio preserved
+         *   exactly; the logo is never stretched or squeezed to fit.
+         * - CLEARSPACE x = 15% of the stamped logo width, empty on all
+         *   four sides inside the photo's real placed bounds.
+         * - MIN SIZE floor BK_MIN_LOGO_W = 64px (the book's digital min);
+         *   a zone that cannot fit 64px + clearspace is SKIPPED — the
+         *   photo stays blank rather than shrinking the logo below min.
+         * - VARIANT rule, the SAME on all 18 zones: auto = reversed-white
+         *   on dark/busy photos, primary on light photos; an explicit
+         *   primary / reversed / mono choice wins. The 10% tint rect sits
+         *   UNDER the logo (the stamp is added after the tint), so the
+         *   tint never recolors the logo.
+         * - PLACEMENT is centered on the photo's actual placed bounds,
+         *   with the same relative margins per category (BK_STAMP_FRAC),
+         *   so card, sign, packaging and shirt read as one system.
+         * - Logo source priority: p.logoFile (Illustrator-export PNG or
+         *   user-picked PNG) > selected-artwork seed duplicate >
+         *   generated text lockup. Stamp counts are reported in the OK
+         *   string so the panel status line can say how many zones got
+         *   the stamp and how many were skipped for min size. */
         var mkPaths = (p.mockups && typeof p.mockups === "object") ? p.mockups : {};
+        var mkTone = (p.mockupTone && typeof p.mockupTone === "object") ? p.mockupTone : {};
+        var logoFile = (p.logoFile && String(p.logoFile).length > 0) ? String(p.logoFile) : "";
+        var logoVariant = String(p.logoVariant || "auto");
+        var logoTone = String(p.logoTone || "dark");
+        var BK_MIN_LOGO_W = 64;
+        var BK_CLEARSPACE = 0.15;
+        var BK_STAMP_FRAC = { stationery: 0.40, signage: 0.48, packaging: 0.44, bag: 0.46, apparel: 0.44, cup: 0.50, social: 0.46, laptop: 0.40, phone: 0.48, billboard: 0.46 };
+        var lastMkBounds = null;
+        var stampOK = 0, stampSkip = 0, stampSkipCats = [];
+        var stampSeed = null, stampCols = null, stampFont = null;
         function dmPlaceMockup(grp, cat, x, yTop, w, h, tintC) {
             try {
+                lastMkBounds = null;
                 var path = mkPaths[cat];
                 if (!path) return false;
                 var f = new File(String(path));
@@ -3161,6 +3267,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 var gb2 = pi.geometricBounds;
                 var cx = x + w / 2, cy = yTop - h / 2;
                 pi.translate(cx - (gb2[0] + gb2[2]) / 2, cy - (gb2[1] + gb2[3]) / 2);
+                lastMkBounds = pi.geometricBounds;
                 if (tintC) {
                     try {
                         var ov = grp.pathItems.rectangle(yTop, x, w, h);
@@ -3170,6 +3277,89 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 }
                 return true;
             } catch (ePM) { return false; }
+        }
+        function dmStampLogoOnMockup(grp, cat) {
+            try {
+                if (!lastMkBounds) return false;
+                var pb = lastMkBounds;
+                var pw = Math.max(1, pb[2] - pb[0]), ph = Math.max(1, pb[1] - pb[3]);
+                var frac = BK_STAMP_FRAC[cat] || 0.40;
+                var tone = String(mkTone[cat] || "busy");
+                var st = grp.groupItems.add();
+                st.name = "Logo_On_Mockup_" + cat;
+                var isRaster = false, isSeed = false;
+                if (logoFile) {
+                    try {
+                        var lf = new File(logoFile);
+                        if (lf.exists) {
+                            var lpi = st.placedItems.add();
+                            lpi.file = lf;
+                            isRaster = true;
+                        }
+                    } catch (eLf) {}
+                }
+                if (!isRaster && stampSeed && stampSeed.pageItems.length > 0) {
+                    try {
+                        var du = stampSeed.duplicate(st, ElementPlacement.PLACEATEND);
+                        isSeed = true;
+                    } catch (eSd) {}
+                }
+                var variant = logoVariant;
+                if (variant === "auto") variant = (tone === "light") ? "primary" : "reversed";
+                if (!isRaster && !isSeed) {
+                    if (!stampCols) { try { st.remove(); } catch (eR0) {} return false; }
+                    var bn2 = String(p.brandName || "DESIGN360N").toUpperCase();
+                    var tileC = stampCols.primary, initC = stampCols.dark;
+                    if (variant === "reversed") { tileC = stampCols.white; initC = stampCols.primary; }
+                    else if (variant === "mono") { tileC = stampCols.dark; initC = stampCols.white; }
+                    var tile = st.pathItems.roundedRectangle(50, -50, 100, 100, 22, 22);
+                    tile.filled = true; tile.fillColor = tileC; tile.stroked = false;
+                    var tf = st.textFrames.add();
+                    tf.contents = bn2.substring(0, 2);
+                    var ca = tf.textRange.characterAttributes;
+                    ca.size = 42; ca.fillColor = initC;
+                    if (stampFont) { try { ca.textFont = stampFont; } catch (eF2) {} }
+                    try { tf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (eJ) {}
+                    tf.position = [0 - tf.width / 2, 18];
+                    try {
+                        var tfb = tf.geometricBounds;
+                        tf.translate(0 - (tfb[0] + tfb[2]) / 2, 0 - (tfb[1] + tfb[3]) / 2);
+                    } catch (eTc) {}
+                }
+                var sgb = st.geometricBounds;
+                var sw = Math.max(0, sgb[2] - sgb[0]), sh = Math.max(0, sgb[1] - sgb[3]);
+                if (sw <= 0 || sh <= 0) { try { st.remove(); } catch (eR1) {} return false; }
+                var aspect = sh / sw;
+                var targetW = Math.min(pw * frac, pw / 1.30, ph / (aspect + 0.30));
+                if (targetW < BK_MIN_LOGO_W) {
+                    try { st.remove(); } catch (eR2) {}
+                    stampSkip++; stampSkipCats.push(cat);
+                    return false;
+                }
+                var scP = targetW / sw * 100;
+                st.resize(scP, scP, true, true, true, true, scP, Transformation.CENTER);
+                if ((isRaster || isSeed) && stampCols) {
+                    var clash = (logoTone === "dark" && tone !== "light") || (logoTone === "light" && tone !== "dark");
+                    if (clash) {
+                        try {
+                            var sgb2 = st.geometricBounds;
+                            var lw2 = sgb2[2] - sgb2[0], lh2 = sgb2[1] - sgb2[3];
+                            var pad = BK_CLEARSPACE * lw2;
+                            var scr = st.pathItems.roundedRectangle(sgb2[1] + pad, sgb2[0] - pad, lw2 + pad * 2, lh2 + pad * 2, Math.max(6, Math.min(lw2, lh2) * 0.12), Math.max(6, Math.min(lw2, lh2) * 0.12));
+                            scr.filled = true;
+                            scr.fillColor = (logoTone === "dark") ? stampCols.white : stampCols.dark;
+                            scr.stroked = false;
+                            scr.opacity = 88;
+                            scr.zOrder(ZOrderMethod.SENDTOBACK);
+                        } catch (eScr) {}
+                    }
+                }
+                var sgb3 = st.geometricBounds;
+                var pcx = (pb[0] + pb[2]) / 2, pcy = (pb[1] + pb[3]) / 2;
+                st.translate(pcx - (sgb3[0] + sgb3[2]) / 2, pcy - (sgb3[1] + sgb3[3]) / 2);
+                stampOK++;
+                return true;
+            } catch (eSt) { return false; }
         }
         var inc = p.include || {};
         var srcDoc = (app.documents.length > 0) ? app.activeDocument : null;
@@ -3203,12 +3393,16 @@ function dmGenerateBrandKitAI(payloadJSON) {
             var cA = dmHexToRGBColor(p.accent || "#f59e0b");
             var cDk = dmHexToRGBColor(p.dark || "#0b1120");
             var cCream = dmHexToRGBColor("#F7F2E9");
+            var cLt = dmHexToRGBColor(p.light || "#f8fafc");
             var cWhite = dmHexToRGBColor("#ffffff");
             var cMuted = dmHexToRGBColor("#94a3b8");
             var fT = dmFindTextFont(p.titleFont || "Montserrat") || dmFindTextFont("Arial Bold") || dmFindTextFont("Arial");
             var fB = dmFindTextFont(p.bodyFont || "Arial") || fT;
             var bn = String(p.brandName || "DESIGN360N").toUpperCase();
             var g = lyrB.groupItems.add(); g.name = "Brand_Sheet_" + tpl;
+            stampSeed = seedB;
+            stampCols = { primary: cP, dark: cDk, white: cWhite, light: cCream };
+            stampFont = fT;
 
             function bx(x, yTop, w, h, fc, sc, sw, rad) {
                 var r = (rad && rad > 0) ? g.pathItems.roundedRectangle(yTop, x, w, h, rad, rad) : g.pathItems.rectangle(yTop, x, w, h);
@@ -3270,14 +3464,14 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 // 3. Row 3: Typography Specimen Card (Left) + App Icon Badge Card (Right)
                 bx(36, H - 734, 680, 250, cCream, null, 0, 26);
                 tx("Aa", 80, H - 772, 118, cDk, fT, false);
-                tx((p.titleFont || "Poppins") + "\nBold & SemiBold • Clean & Modern", 285, H - 796, 17, cDk, fT, false);
+                tx((p.titleFont || "Poppins") + "\n" + (p.personality ? ("Bold & SemiBold • " + String(p.personality).replace(/,\s*/g, " • ")) : "Bold & SemiBold"), 285, H - 796, 17, cDk, fT, false);
                 tx("ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz  0123456789", 80, H - 918, 13, cDk, fB, false);
 
                 bx(736, H - 734, 428, 250, cWhite, null, 0, 26);
                 bx(865, H - 776, 170, 170, cP, null, 0, 38);
                 lg(950, H - 861, 105, 85);
                 // Notification red badge
-                var nb = g.pathItems.ellipse(H - 760, 1005, 42, 42); nb.filled = true; nb.fillColor = dmHexToRGBColor("#ef4444"); nb.stroked = false;
+                var nb = g.pathItems.ellipse(H - 760, 1005, 42, 42); nb.filled = true; nb.fillColor = cA; nb.stroked = false;
                 tx("9", 1026, H - 771, 18, cWhite, fT, true);
 
                 // 4. Row 4: 4 Pill HEX Color Swatches (Crave & Co. style!)
@@ -3289,7 +3483,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 }
 
                 // 5. Row 5: Wide Hero Wordmark Banner + Brand Story Card
-                bx(36, H - 1124, 420, 330, dmHexToRGBColor("#111b2e"), cP, 1.5, 26);
+                bx(36, H - 1124, 420, 330, cDk, cP, 1.5, 26);
                 tx("BRAND STORY", 68, H - 1160, 13, cP, fT, false);
                 tx(bn + "\n\n" + (p.tagline || "") + "\n\n" + (p.story || ""), 68, H - 1200, 15, cWhite, fB, false);
                 bx(476, H - 1124, 688, 330, cP, null, 0, 26);
@@ -3298,12 +3492,12 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 // 6. Row 6: Packaging Cup/Box Card + Die-Cut Sticker Card
                 bx(36, H - 1478, 620, 436, cCream, null, 0, 26);
                 tx("PACKAGING & MERCHANDISE", 346, H - 1510, 13, cDk, fT, true);
-                if (!dmPlaceMockup(g, "packaging", 56, H - 1540, 580, 360, cP)) {
+                if (dmPlaceMockup(g, "packaging", 56, H - 1540, 580, 360, cP)) { dmStampLogoOnMockup(g, "packaging"); } else {
                     bx(110, H - 1560, 175, 280, cS, null, 0, 18); lg(197, H - 1690, 110, 85);
                     bx(330, H - 1610, 240, 230, cDk, null, 0, 16); lg(450, H - 1720, 130, 95);
                 }
                 bx(676, H - 1478, 488, 436, cS, null, 0, 26);
-                if (!dmPlaceMockup(g, "cup", 696, H - 1500, 448, 330, cP)) {
+                if (dmPlaceMockup(g, "cup", 696, H - 1500, 448, 330, cP)) { dmStampLogoOnMockup(g, "cup"); } else {
                     bx(760, H - 1565, 320, 240, cWhite, null, 0, 56);
                     lg(920, H - 1685, 230, 150);
                 }
@@ -3315,29 +3509,29 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 bx(28, H - 28, 370, 420, cWhite, dmHexToRGBColor("#e2e8f0"), 1, 0);
                 tx("STRATEGY\nBRAND IDENTITY\nVISUAL DESIGN", 54, H - 56, 11, cMuted, fT, false);
                 lg(213, H - 235, 250, 140);
-                tx((p.tagline || "IDEAS SHAPE • BRANDS GROW").toUpperCase(), 213, H - 385, 11, cDk, fT, true);
+                tx((p.tagline || (bn + " — BRAND IDENTITY")).toUpperCase(), 213, H - 385, 11, cDk, fT, true);
 
-                bx(414, H - 28, 410, 420, dmHexToRGBColor("#e2e8f0"), null, 0, 0);
+                bx(414, H - 28, 410, 420, cLt, null, 0, 0);
                 // Angled Business Card Front & Back
                 bx(460, H - 70, 310, 175, cP, null, 0, 4); lg(615, H - 155, 150, 85);
                 bx(460, H - 260, 310, 175, cWhite, cMuted, 0.5, 4);
                 tx(bn + "\n" + (p.phone || "") + "\n" + (p.email || "") + "\n" + (p.website || ""), 486, H - 295, 11, cDk, fB, false);
 
                 bx(840, H - 28, 332, 420, cP, null, 0, 0);
-                tx("BRANDS\nPEOPLE\nIDEAS\nA BRIGHTER\nTOMORROW", 884, H - 155, 16, cWhite, fT, false);
+                tx((p.tagline || bn) + "\n" + String(p.values || "").replace(/\s*•\s*/g, "\n"), 884, H - 155, 16, cWhite, fT, false);
 
                 // Mid 3-Col: Typeface Specimen | App Icon | 4 Vertical Full-Bleed Color Columns
-                bx(28, H - 468, 370, 340, dmHexToRGBColor("#f8fafc"), null, 0, 0);
+                bx(28, H - 468, 370, 340, cLt, null, 0, 0);
                 tx("PRIMARY TYPEFACE — " + (p.titleFont || "Montserrat").toUpperCase(), 54, H - 498, 10, cMuted, fT, false);
                 tx("A B C D E F G H I J K L M N\nO P Q R S T U V W X Y Z\n0 1 2 3 4 5 6 7 8 9", 54, H - 545, 14, cDk, fT, false);
-                tx("MODERN • CLEAN • VERSATILE • TIMELESS", 54, H - 720, 11, cP, fT, false);
+                tx(String(p.personality || "").replace(/,\s*/g, " • ").toUpperCase() || (p.titleFont || "Montserrat").toUpperCase(), 54, H - 720, 11, cP, fT, false);
 
-                bx(414, H - 468, 320, 340, dmHexToRGBColor("#f1f5f9"), null, 0, 0);
+                bx(414, H - 468, 320, 340, cLt, null, 0, 0);
                 bx(504, H - 535, 140, 140, cP, null, 0, 32); lg(574, H - 605, 86, 70);
                 tx(bn, 574, H - 705, 16, cDk, fT, true);
 
                 // 4 Vertical Color Columns (Inova signature!)
-                var vCols = [[cP, "PRIMARY", p.primary, cWhite], [cS, "SECONDARY", p.secondary, cWhite], [dmHexToRGBColor("#f1f5f9"), "LIGHT", "#F1F5F9", cDk], [cDk, "DARK", p.dark, cWhite]];
+                var vCols = [[cP, "PRIMARY", p.primary, cWhite], [cS, "SECONDARY", p.secondary, cWhite], [cLt, "LIGHT", String(p.light || "#F8FAFC").toUpperCase(), cDk], [cDk, "DARK", p.dark, cWhite]];
                 for (var vc = 0; vc < 4; vc++) {
                     var vx2 = 750 + vc * 106;
                     bx(vx2, H - 468, 104, 340, vCols[vc][0], null, 0, 0);
@@ -3345,30 +3539,30 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 }
 
                 // Applications Grid (Signboard, Tote Bag, Bottle, T-Shirt)
-                bx(28, H - 830, 560, 420, dmHexToRGBColor("#e2e8f0"), null, 0, 0);
+                bx(28, H - 830, 560, 420, cLt, null, 0, 0);
                 tx("STOREFRONT & 3D WALL SIGNAGE", 56, H - 865, 11, cMuted, fT, false);
-                if (!dmPlaceMockup(g, "signage", 48, H - 890, 520, 340, cP)) { lg(308, H - 1040, 320, 180); }
+                if (dmPlaceMockup(g, "signage", 48, H - 890, 520, 340, cP)) { dmStampLogoOnMockup(g, "signage"); } else { lg(308, H - 1040, 320, 180); }
 
                 bx(606, H - 830, 566, 420, cP, null, 0, 0);
                 tx("MERCHANDISE & TOTE BAG", 636, H - 865, 11, cWhite, fT, false);
-                if (!dmPlaceMockup(g, "bag", 626, H - 890, 526, 340, cP)) { lg(889, H - 1040, 260, 180); }
+                if (dmPlaceMockup(g, "bag", 626, H - 890, 526, 340, cP)) { dmStampLogoOnMockup(g, "bag"); } else { lg(889, H - 1040, 260, 180); }
 
                 bx(28, H - 1270, 370, 440, cDk, null, 0, 0);
                 tx("MOBILE APP ICON", 213, H - 1305, 11, cP, fT, true);
                 bx(133, H - 1380, 160, 160, cP, null, 0, 34); lg(213, H - 1460, 95, 80);
 
-                bx(414, H - 1270, 370, 440, dmHexToRGBColor("#f1f5f9"), null, 0, 0);
+                bx(414, H - 1270, 370, 440, cLt, null, 0, 0);
                 tx("BOTTLE PACKAGING", 599, H - 1305, 11, cDk, fT, true);
-                if (!dmPlaceMockup(g, "packaging", 434, H - 1330, 330, 360, cP)) { bx(534, H - 1370, 130, 290, cP, null, 0, 26); lg(599, H - 1510, 88, 65); }
+                if (dmPlaceMockup(g, "packaging", 434, H - 1330, 330, 360, cP)) { dmStampLogoOnMockup(g, "packaging"); } else { bx(534, H - 1370, 130, 290, cP, null, 0, 26); lg(599, H - 1510, 88, 65); }
 
                 bx(800, H - 1270, 372, 440, cS, null, 0, 0);
                 tx("STAFF APPAREL TEE", 986, H - 1305, 11, cWhite, fT, true);
-                if (!dmPlaceMockup(g, "apparel", 820, H - 1330, 332, 360, cP)) { lg(986, H - 1490, 180, 120); }
+                if (dmPlaceMockup(g, "apparel", 820, H - 1330, 332, 360, cP)) { dmStampLogoOnMockup(g, "apparel"); } else { lg(986, H - 1490, 180, 120); }
 
-                // Clean Editorial Footer
+                // Clean Editorial Footer — the brand's own words, not a slogan
                 bx(0, H - 1750, W, 200, cWhite, null, 0, 0);
-                tx("Branding for\nwhat's next.", 48, H - 1795, 34, cDk, fT, false);
-                tx("STRATEGY  •  IDENTITY  •  DESIGN  •  IMPACT", 560, H - 1845, 11, cMuted, fT, true);
+                tx((p.tagline || bn), 48, H - 1795, 34, cDk, fT, false);
+                tx(String(p.values || "").toUpperCase(), 560, H - 1845, 11, cMuted, fT, true);
                 lg(1010, H - 1845, 180, 90);
             } else if (tpl === "editorial_warm") {
                 // Style 3: Carlam Warm Editorial Brand Sheet (Cream Hero, 3-Col Strip, 5 Circular Swatches, Full-Width Type Bar)
@@ -3406,12 +3600,12 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 lg(306, H - 1660, 280, 190);
                 bx(600, H - 1390, 564, 245, cDk, null, 0, 14);
                 tx("SIGNBOARD & STOREFRONT", 882, H - 1420, 12, cA, fT, true);
-                if (!dmPlaceMockup(g, "signage", 620, H - 1450, 524, 170, cP)) { lg(882, H - 1525, 240, 130); }
+                if (dmPlaceMockup(g, "signage", 620, H - 1450, 524, 170, cP)) { dmStampLogoOnMockup(g, "signage"); } else { lg(882, H - 1525, 240, 130); }
                 bx(600, H - 1660, 270, 250, cWhite, cMuted, 0.6, 14);
-                if (!dmPlaceMockup(g, "cup", 616, H - 1676, 238, 150, cP)) { lg(735, H - 1745, 140, 90); }
+                if (dmPlaceMockup(g, "cup", 616, H - 1676, 238, 150, cP)) { dmStampLogoOnMockup(g, "cup"); } else { lg(735, H - 1745, 140, 90); }
                 tx((p.address || "") + "\n" + (p.phone || ""), 735, H - 1835, 10, cDk, fB, true);
                 bx(894, H - 1660, 270, 250, cA, null, 0, 14);
-                if (!dmPlaceMockup(g, "apparel", 910, H - 1676, 238, 150, cP)) { lg(1029, H - 1775, 150, 110); }
+                if (dmPlaceMockup(g, "apparel", 910, H - 1676, 238, 150, cP)) { dmStampLogoOnMockup(g, "apparel"); } else { lg(1029, H - 1775, 150, 110); }
                 tx("UNIFORM / APRON", 1029, H - 1865, 11, cDk, fT, true);
             } else {
                 // Style 4: Break Bold Retail & Pattern Sheet (Vibrant Hero + 3 Pill Lockups + Pattern Footer Strip)
@@ -3437,20 +3631,20 @@ function dmGenerateBrandKitAI(payloadJSON) {
 
                 // Application 2x3 Grid (Cup, Shopping Bag, Round Sign, Drawer Box, Sticker)
                 bx(0, H - 900, 400, 390, cCream, null, 0, 0);
-                if (!dmPlaceMockup(g, "cup", 20, H - 930, 360, 280, cP)) { bx(115, H - 970, 170, 230, cP, null, 0, 18); lg(200, H - 1085, 115, 80); }
+                if (dmPlaceMockup(g, "cup", 20, H - 930, 360, 280, cP)) { dmStampLogoOnMockup(g, "cup"); } else { bx(115, H - 970, 170, 230, cP, null, 0, 18); lg(200, H - 1085, 115, 80); }
                 tx("CUP PACKAGING", 200, H - 1235, 12, cDk, fT, true);
                 bx(400, H - 900, 400, 390, cP, null, 0, 0);
-                if (!dmPlaceMockup(g, "bag", 420, H - 930, 360, 280, cP)) { bx(490, H - 970, 220, 240, cCream, null, 0, 10); lg(600, H - 1085, 130, 90); }
+                if (dmPlaceMockup(g, "bag", 420, H - 930, 360, 280, cP)) { dmStampLogoOnMockup(g, "bag"); } else { bx(490, H - 970, 220, 240, cCream, null, 0, 10); lg(600, H - 1085, 130, 90); }
                 tx("SHOPPING BAG", 600, H - 1235, 12, cWhite, fT, true);
                 bx(800, H - 900, 400, 390, cDk, null, 0, 0);
-                if (!dmPlaceMockup(g, "signage", 820, H - 930, 360, 280, cP)) {
+                if (dmPlaceMockup(g, "signage", 820, H - 930, 360, 280, cP)) { dmStampLogoOnMockup(g, "signage"); } else {
                     var rsEl = g.pathItems.ellipse(H - 960, 880, 240, 240); rsEl.filled = true; rsEl.fillColor = cP; rsEl.stroked = true; rsEl.strokeColor = cWhite; rsEl.strokeWidth = 4;
                     lg(1000, H - 1080, 150, 105);
                 }
                 tx("ROUND SIGNAGE", 1000, H - 1235, 12, cWhite, fT, true);
 
                 bx(0, H - 1290, 600, 380, cS, null, 0, 0);
-                if (!dmPlaceMockup(g, "packaging", 20, H - 1320, 560, 280, cP)) { bx(140, H - 1355, 320, 220, cP, null, 0, 14); lg(300, H - 1465, 180, 110); }
+                if (dmPlaceMockup(g, "packaging", 20, H - 1320, 560, 280, cP)) { dmStampLogoOnMockup(g, "packaging"); } else { bx(140, H - 1355, 320, 220, cP, null, 0, 14); lg(300, H - 1465, 180, 110); }
                 tx("PACKAGING BOX", 300, H - 1615, 13, cWhite, fT, true);
                 bx(600, H - 1290, 600, 380, cDk, null, 0, 0); bx(740, H - 1355, 320, 220, cCream, null, 0, 48); lg(900, H - 1465, 190, 120); tx("BRAND STICKER", 900, H - 1615, 13, cWhite, fT, true);
 
@@ -3464,7 +3658,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
 
             if (seedB) { try { seedB.remove(); } catch (eR) {} }
             try { app.executeMenuCommand("fitinwindow"); } catch (eF) {}
-            return "OK:Generated Vertical Behance Brand Sheet (" + tpl + (srcSel.length > 0 ? " • Your Logo Applied!" : "") + ")!";
+            return "OK:Generated Vertical Behance Brand Sheet (" + tpl + (srcSel.length > 0 ? " • Your Logo Applied!" : "") + ")! • Logo on mockups: " + stampOK + " stamped per guideline" + (stampSkip > 0 ? " (" + stampSkip + " skipped — below min size: " + stampSkipCats.join(", ") + ")" : "") + ".";
         }
 
         // All 10 Complete Agency Branding Checklist Artboards (1920x1080 presentation / print-ready boards)
@@ -3512,6 +3706,9 @@ function dmGenerateBrandKitAI(payloadJSON) {
         var fTitle = dmFindTextFont(p.titleFont || "Montserrat") || dmFindTextFont("Arial Bold") || dmFindTextFont("Arial");
         var fBody  = dmFindTextFont(p.bodyFont || "Arial") || fTitle;
         var bName  = String(p.brandName || "DESIGN360N").toUpperCase();
+        stampSeed = logoSeedGrp;
+        stampCols = { primary: colP, dark: colDk, white: colWhite, light: colLt };
+        stampFont = fTitle;
 
         function addBox(grp, x, yTop, w, h, fillC, strokeC, sw, rad) {
             var r = (rad && rad > 0) ? grp.pathItems.roundedRectangle(yTop, x, w, h, rad, rad) : grp.pathItems.rectangle(yTop, x, w, h);
@@ -3649,7 +3846,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 addT(g, "H1 — Display Headline (48pt Bold)", x0 + 670, y0 - 175, 28, colWhite, fTitle, false);
                 addT(g, "H2 — Section Heading (28pt SemiBold)", x0 + 670, y0 - 245, 20, colP, fTitle, false);
                 addT(g, "H3 — Card Subheading (18pt Medium)", x0 + 670, y0 - 305, 15, colWhite, fTitle, false);
-                addT(g, "Body Copy (12pt Regular) — Clean, balanced line-height for print\ndocuments, corporate profiles, websites, and social media graphics.", x0 + 670, y0 - 365, 12.5, colMuted, fBody, false);
+                addT(g, "Body Copy (12pt Regular) — " + (p.bodyFont || "Arial") + "\n" + String(p.personality || "").replace(/,\s*/g, " • "), x0 + 670, y0 - 365, 12.5, colMuted, fBody, false);
                 addT(g, "CAPTION / METADATA (9PT UPPERCASE TRACKED)", x0 + 670, y0 - 465, 10, colA, fTitle, false);
             } else if (key === "sec5") {
                 slideHeader(g, x0, y0, "05", "BRAND GRAPHICS, PATTERN & MOTIFS", true);
@@ -3671,7 +3868,12 @@ function dmGenerateBrandKitAI(payloadJSON) {
 
                 addBox(g, x0 + 656, y0 - 396, 576, 274, colLt, null, 0, 18);
                 addT(g, "PHOTOGRAPHY & TEXTURE DIRECTION", x0 + 682, y0 - 426, 12, colDk, fTitle, false);
-                addT(g, "• Clean overhead softbox lighting with high-contrast micro-textures\n• Editorial framing with generous negative space for typography\n• Consistent color grading anchored to Primary & Dark Neutral tones\n• 2px geometric stroke iconography with rounded line caps", x0 + 682, y0 - 472, 13, colDk, fBody, false);
+                var photoDir = "Photography for " + bName + (p.personality ? " — " + String(p.personality).replace(/,\s*/g, ", ") + "." : ".");
+                photoDir += "\n• " + (p.industry ? ("Shot in the " + p.industry + " world — real places, real materials") : "Real places, real materials, honest light");
+                photoDir += "\n• Color grading anchored to Primary & Dark Neutral tones";
+                photoDir += "\n• Generous negative space kept free for typography";
+                if (p.values) photoDir += "\n• " + String(p.values).replace(/,\s*/g, " • ");
+                addT(g, photoDir, x0 + 682, y0 - 472, 13, colDk, fBody, false);
             } else if (key === "sec6") {
                 slideHeader(g, x0, y0, "06", "COMPLETE STATIONERY SUITE (CARD • LETTERHEAD • ENVELOPE • INVOICE • ID • EMAIL SIG)", false);
                 // Business Card Front + Back
@@ -3684,19 +3886,19 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 // DL Envelope — real stationery mockup photo when available, else vector
                 addBox(g, x0 + 48, y0 - 270, 514, 180, colWhite, colMuted, 0.7, 10);
                 addBox(g, x0 + 48, y0 - 436, 514, 14, colP, null, 0, 0);
-                if (!dmPlaceMockup(g, "stationery", x0 + 64, y0 - 286, 482, 148, colP)) {
+                if (dmPlaceMockup(g, "stationery", x0 + 64, y0 - 286, 482, 148, colP)) { dmStampLogoOnMockup(g, "stationery"); } else {
                     placeLogo(g, x0 + 108, y0 - 322, 68, 42);
                     addT(g, "DL ENVELOPE (220×110mm)\n" + (p.address || ""), x0 + 158, y0 - 306, 10, colDk, fBody, false);
                 }
                 // Email Signature & Notepad
                 addBox(g, x0 + 48, y0 - 470, 514, 195, colDk2, colS, 1, 12);
                 placeLogo(g, x0 + 115, y0 - 565, 80, 60);
-                addT(g, "EMAIL SIGNATURE TEMPLATE\n" + bName + " • Creative Team\n" + (p.phone || "") + " | " + (p.email || "") + "\n" + (p.website || ""), x0 + 185, y0 - 510, 11.5, colWhite, fBody, false);
+                addT(g, "EMAIL SIGNATURE TEMPLATE\n" + bName + "\n" + (p.phone || "") + " | " + (p.email || "") + "\n" + (p.website || ""), x0 + 185, y0 - 510, 11.5, colWhite, fBody, false);
                 // A4 Letterhead + Invoice Preview (Right)
                 addBox(g, x0 + 588, y0 - 95, 315, 570, colWhite, colMuted, 0.8, 10);
                 addBox(g, x0 + 588, y0 - 95, 315, 14, colP, null, 0, 0);
                 placeLogo(g, x0 + 642, y0 - 142, 65, 40);
-                addT(g, "LETTERHEAD & INVOICE / QUOTATION\n\nInvoice #: INV-2026-001\nBill To: Client Company Ltd.\n\n01. Brand Identity Design ........ 100%\n02. Stationery & Print Kit ........ 100%", x0 + 610, y0 - 190, 10, colDk, fBody, false);
+                addT(g, "LETTERHEAD & INVOICE / QUOTATION\n\n" + bName + "\n" + (p.email || "") + "\n" + (p.website || "") + "\n\nInvoice #: INV-2026-001", x0 + 610, y0 - 190, 10, colDk, fBody, false);
                 addBox(g, x0 + 588, y0 - 630, 315, 35, colDk, null, 0, 0);
                 // Staff ID Card & Folder
                 addBox(g, x0 + 928, y0 - 95, 304, 570, colWhite, colP, 1.2, 16);
@@ -3713,11 +3915,12 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 addT(g, "INSTAGRAM / FB POST (1080×1080)", x0 + 228, y0 - 418, 10, colP, fTitle, true);
                 // IG Story Vertical — real phone mockup photo when available
                 addBox(g, x0 + 432, y0 - 95, 240, 570, colP, null, 0, 18);
-                if (!dmPlaceMockup(g, "phone", x0 + 448, y0 - 111, 208, 280, colP)) { placeLogo(g, x0 + 552, y0 - 280, 130, 95); }
+                if (dmPlaceMockup(g, "phone", x0 + 448, y0 - 111, 208, 280, colP)) { dmStampLogoOnMockup(g, "phone"); } else { placeLogo(g, x0 + 552, y0 - 280, 130, 95); }
                 addT(g, "IG STORY\n1080×1920", x0 + 552, y0 - 420, 16, colDk, fTitle, true);
                 // FB Cover Banner — real social mockup photo when available
                 addBox(g, x0 + 696, y0 - 95, 536, 210, colDk2, colS, 2, 16);
                 if (dmPlaceMockup(g, "social", x0 + 712, y0 - 111, 240, 178, colP)) {
+                    dmStampLogoOnMockup(g, "social");
                     addT(g, bName + "\n" + (p.tagline || "") + "\nFACEBOOK COVER (851×315)", x0 + 980, y0 - 155, 15, colWhite, fTitle, false);
                 } else {
                     placeLogo(g, x0 + 805, y0 - 200, 120, 90);
@@ -3746,7 +3949,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
                     var pd = pCards[pc];
                     addBox(g, pd[0], pd[1], pd[2], pd[3], pd[4], colP, 1.0, 16);
                     var placed8 = pd[7] ? dmPlaceMockup(g, pd[7], pd[0] + 16, pd[1] - 16, pd[2] - 32, pd[3] - 64, colP) : false;
-                    if (!placed8) placeLogo(g, pd[0] + pd[2] / 2, pd[1] - pd[3] * 0.44, pd[2] * 0.48, pd[3] * 0.44);
+                    if (placed8) dmStampLogoOnMockup(g, pd[7]); else placeLogo(g, pd[0] + pd[2] / 2, pd[1] - pd[3] * 0.44, pd[2] * 0.48, pd[3] * 0.44);
                     addT(g, pd[5], pd[0] + pd[2] / 2, pd[1] - pd[3] + 28, 11, pd[6] ? colWhite : colDk, fTitle, true);
                 }
             } else if (key === "sec9") {
@@ -3763,7 +3966,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
                     var isLtC = (ac === 1 || ac === 4);
                     addBox(g, ad[0], ad[1], ad[2], ad[3], ad[4], colP, 1.0, 16);
                     var placed9 = ad[6] ? dmPlaceMockup(g, ad[6], ad[0] + 16, ad[1] - 16, ad[2] - 32, ad[3] - 64, colP) : false;
-                    if (!placed9) placeLogo(g, ad[0] + ad[2] / 2, ad[1] - ad[3] * 0.44, ad[2] * 0.44, ad[3] * 0.42);
+                    if (placed9) dmStampLogoOnMockup(g, ad[6]); else placeLogo(g, ad[0] + ad[2] / 2, ad[1] - ad[3] * 0.44, ad[2] * 0.44, ad[3] * 0.42);
                     addT(g, ad[5], ad[0] + ad[2] / 2, ad[1] - ad[3] + 28, 11, isLtC ? colDk : colWhite, fTitle, true);
                 }
             } else if (key === "sec10") {
@@ -3783,7 +3986,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
 
         if (logoSeedGrp) { try { logoSeedGrp.remove(); } catch (eRem) {} }
         try { app.executeMenuCommand("fitall"); } catch (eFit) {}
-        return "OK:Generated Complete " + specs.length + "-Section Brand Identity Book (" + (srcSel.length > 0 ? "Your Selected Logo Applied!" : "Monogram Applied") + ")!";
+        return "OK:Generated Complete " + specs.length + "-Section Brand Identity Book (" + (srcSel.length > 0 ? "Your Selected Logo Applied!" : "Monogram Applied") + ")! • Logo on mockups: " + stampOK + " stamped per guideline" + (stampSkip > 0 ? " (" + stampSkip + " skipped — below min size: " + stampSkipCats.join(", ") + ")" : "") + ".";
     } catch (err) {
         return "ERROR:" + err.message + " (line " + err.line + ")";
     }

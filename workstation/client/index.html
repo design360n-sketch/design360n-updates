@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Design360n Workstation v17.7.23 — Illustrator Extension</title>
+  <title>Design360n Workstation v17.7.24 — Illustrator Extension</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -24,7 +24,7 @@
       <div class="brand">
         <div class="brand-icon"><svg width="24" height="24" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="d3gB" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#6FE8C0"/><stop offset="100%" stop-color="#0EA5E9"/></linearGradient></defs><circle cx="20" cy="20" r="17" stroke="url(#d3gB)" stroke-width="1.8" stroke-dasharray="78 16" stroke-linecap="round" opacity="0.8"/><path d="M20 7.5 L31 13.8 L20 20.2 L9 13.8 Z" fill="#F0FDFA" stroke="#041016" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 13.8 L20 20.2 L20 32.5 L9 26.2 Z" fill="#2ED3A3" stroke="#041016" stroke-width="1.3" stroke-linejoin="round"/><path d="M31 13.8 L20 20.2 L20 32.5 L31 26.2 Z" fill="#0B4F54" stroke="#041016" stroke-width="1.3" stroke-linejoin="round"/></svg></div>
         <div class="brand-info">
-          <div class="brand-title">Design360n <span class="brand-ver">v17.7.23</span></div>
+          <div class="brand-title">Design360n <span class="brand-ver">v17.7.24</span></div>
           <div class="brand-sub">Workstation • Packaging • 3D</div>
         </div>
       </div>
@@ -1196,7 +1196,7 @@
         </div>
       </section>
 
-      <!-- BRAND IDENTITY KIT STUDIO: Complete 10-Section Agency Branding System (v17.7.23) -->
+      <!-- BRAND IDENTITY KIT STUDIO: Complete 10-Section Agency Branding System (v17.7.24) -->
       <section id="tab-brand" class="tab-pane">
         <button type="button" class="back-btn" data-home="1">← Home</button>
         <div class="card accent-card">
@@ -1214,11 +1214,28 @@
               <option value="bold_retail">4. Bold Retail &amp; Pattern Sheet (Break Style • 1200×1950)</option>
               <option value="book_10">5. Complete 10-Artboard Agency Brand Book (10 Slides)</option>
             </select>
+            <div id="bkTemplateSuggest" class="hint" style="margin-top:4px;">Industry / personality likhle ekhane template suggestion asbe.</div>
           </div>
 
           <button id="btnBkExtractLogo" class="btn btn-sm" type="button" style="width:100%;margin-bottom:8px;">
             ✦ Auto-Extract Brand Colors from Selected Logo in AI
           </button>
+
+          <div class="grid-2" style="margin-bottom:8px;">
+            <div class="field"><label>Logo Source — where does the logo come from?</label><select id="bkLogoSource">
+              <option value="illustrator" selected>Logo from Illustrator (selected artwork)</option>
+              <option value="file">Logo file (PNG with transparency)</option>
+              <option value="generated">Generated text logo (initials tile)</option>
+            </select></div>
+            <div class="field"><label>Logo on Mockups — which version?</label><select id="bkLogoVariant">
+              <option value="auto" selected>Auto — by photo (white on dark, color on light)</option>
+              <option value="primary">Primary color lockup</option>
+              <option value="reversed">Reversed — white lockup</option>
+              <option value="mono">Mono — one color</option>
+            </select></div>
+          </div>
+          <div class="field" id="bkLogoFileRow" style="display:none;margin-bottom:8px;"><label>Your logo file (PNG with transparency works best)</label><input id="bkLogoFile" type="file" accept=".png,.jpg,.jpeg" /><div id="bkLogoFileStatus" class="hint"></div></div>
+          <div class="hint" style="margin-bottom:8px;">Illustrator e logo ta select kore Generate chaple panel nijei logo ta export kore prottek mockup er upor bosabe — alada file pick korte hobe na. Logo guideline onujayi bosbe: aspect ratio thik thakbe, clearspace + min size mana hobe, ar photo onujayi thik variant use hobe.</div>
 
           <div class="adv">
             <button type="button" class="adv-toggle" aria-expanded="false"><span>Online Mockups — Real Photos from the Web (brand-wise)</span><span class="adv-chev">▾</span></button>
