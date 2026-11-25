@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ExtensionManifest Version="7.0"
                    ExtensionBundleId="com.design360n.workstation"
-                   ExtensionBundleVersion="17.7.11"
+                   ExtensionBundleVersion="17.7.12"
                    ExtensionBundleName="Design360n Workstation"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.design360n.workstation.panel" Version="17.7.11" />
+    <Extension Id="com.design360n.workstation.panel" Version="17.7.12" />
   </ExtensionList>
 
   <ExecutionEnvironment>

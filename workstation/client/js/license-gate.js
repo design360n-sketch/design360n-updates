@@ -51,9 +51,24 @@
     licMsg.textContent = txt || "";
     licMsg.className = "auth-msg" + (cls ? (" " + cls) : "");
   }
+  function formatShortExpiry(rawExp) {
+    if (!rawExp || String(rawExp).toUpperCase() === "LIFETIME") return "";
+    var s = String(rawExp).trim();
+    var d = new Date(s);
+    if (isNaN(d.getTime())) {
+      // Fallback: strip timezone/parenthetical (e.g. "SUN DEC 20 2026 06:00:00 GMT+0600 (...)")
+      var m = s.match(/([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})/);
+      if (m) return m[2] + " " + m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() + " " + m[3].slice(-2);
+      return s.slice(0, 12);
+    }
+    var mos = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return d.getDate() + " " + mos[d.getMonth()] + " " + String(d.getFullYear()).slice(-2);
+  }
   function unlockExtension(licObj) {
     if (authGate) authGate.classList.add("unlocked");
-    if (licChipText) licChipText.textContent = (licObj && licObj.expires && licObj.expires !== "LIFETIME") ? ("Pro • " + licObj.expires) : "Pro • Active";
+    var shortExp = (licObj && licObj.expires) ? formatShortExpiry(licObj.expires) : "";
+    if (licChipText) licChipText.textContent = shortExp ? ("Pro • " + shortExp) : "Pro • Active";
+    if (licChip && licObj && licObj.expires) licChip.title = "License expires: " + licObj.expires + " (click to switch key)";
   }
   function lockExtension(reason) {
     if (authGate) authGate.classList.remove("unlocked");

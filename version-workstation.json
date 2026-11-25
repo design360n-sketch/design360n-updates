@@ -23,6 +23,6 @@
     "host/index.jsx",
     "CSXS/manifest.xml"
   ],
-  "notes": "New logo: isometric cube with a thin teal ring around it (40x40 mark), header refreshed. Seal Maker letter-by-letter inner text included.",
-  "version": "17.7.11"
+  "notes": "License chip shows a short expiry date (Pro \u2022 20 Dec 26) with the full date as a tooltip; header overflow guard so the logo + title never collide with the status pills.",
+  "version": "17.7.12"
 }

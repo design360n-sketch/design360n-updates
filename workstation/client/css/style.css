@@ -528,3 +528,10 @@ input[type="color"] {
 .hint { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 .checkbox-row { align-items: center; gap: 10px; }
 .checkbox-row label { white-space: normal; overflow: visible; line-height: 1.35; }
+
+/* v17.7.12: Hard overflow guard on header pills so logo + title NEVER collide */
+.brand { min-width: 145px; }
+.header-right { max-width: 52%; overflow: hidden; }
+.header-right .status-pill {
+  max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
