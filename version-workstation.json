@@ -23,6 +23,6 @@
     "host/index.jsx",
     "CSXS/manifest.xml"
   ],
-  "notes": "Apparel 3D rework: seamless anatomical sleeves (welded shoulder cap, Bezier centerline, taper + cuff lip), organic armhole/drape folds, reworked cloth shader (micro-weave, 3-light softbox wrap, velvet rim).",
-  "version": "17.7.14"
+  "notes": "Apparel 3D: visible size scale XS-3XL, flat-draped T-shirt cross-section, smooth C1 collar curve, sleeve quad winding fix, tribal chest graphic; size HUD refresh on export. (updateSizeHud call removed before release: function does not exist, would have broken 360 export save.)",
+  "version": "17.7.15"
 }

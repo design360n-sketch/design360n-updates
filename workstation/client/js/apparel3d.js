@@ -149,20 +149,34 @@
     function pushV(x, y, z, u, v) { pos.push(x, y, z); nrm.push(0, 1, 0); uv.push(u, v); return (pos.length / 3) - 1; }
     function addQuad(a, b, c, d) { idx.push(a, b, c, a, c, d); }
 
-    var halfW = 0.62 * spec.bodyW;
-    var topY  = 0.88 * spec.bodyH;
-    var botY  = -0.88 * spec.bodyH;
+    // Visible relative size scale so switching XS -> 3XL noticeably changes garment size in studio!
+    var sizeVis = 1.0;
+    if (spec.sizeCode === "XS") sizeVis = 0.88;
+    else if (spec.sizeCode === "S") sizeVis = 0.93;
+    else if (spec.sizeCode === "M") sizeVis = 0.97;
+    else if (spec.sizeCode === "L") sizeVis = 1.01;
+    else if (spec.sizeCode === "XL") sizeVis = 1.05;
+    else if (spec.sizeCode === "2XL") sizeVis = 1.10;
+    else if (spec.sizeCode === "3XL") sizeVis = 1.15;
+
+    var halfW = 0.56 * spec.bodyW * sizeVis;
+    var topY  = 0.80 * spec.bodyH * sizeVis;
+    var botY  = -0.80 * spec.bodyH * sizeVis;
     var totalH = topY - botY;
 
-    var rxCol = halfW * 0.40;
-    var rzCol = 0.22 * spec.bodyW;
+    var rxCol = halfW * 0.36;
+    var rzCol = 0.145 * spec.bodyW * sizeVis;
 
+    // Smooth continuous C1 collar curve (zero sharp horns/spikes at ±90 deg!)
     function collarYAt(ang) {
       var cc = Math.cos(ang);
       if (cc >= 0) {
-        return topY - (spec.neckType === "vneck" || spec.neckType === "polo" ? cc * spec.neckDepth * 1.15 : Math.pow(cc, 0.72) * spec.neckDepth);
+        var curve = (spec.neckType === "vneck" || spec.neckType === "polo")
+          ? Math.pow(cc, 1.35) * spec.neckDepth * 1.12
+          : Math.pow(cc, 1.55) * spec.neckDepth * 1.05;
+        return topY - curve * sizeVis;
       }
-      return topY - Math.pow(-cc, 0.7) * 0.045;
+      return topY - Math.pow(-cc, 1.6) * 0.032 * sizeVis;
     }
 
     // A) TORSO SHELL (Continuous front + back with sculpted drape)
@@ -178,29 +192,22 @@
         var widthCurve = 1.0 - 0.08 * Math.sin(tv * Math.PI) * (1.0 - (spec.waistTaper - 0.82) * 3.0);
         if (tv < 0.16) widthCurve *= (0.96 + 0.04 * (tv / 0.16));
         if (tv > 0.82) widthCurve *= (1.0 + 0.03 * ((tv - 0.82) / 0.18));
-        // Organic armhole & shoulder transition so sleeves fuse seamlessly with torso
-        var armZone = Math.exp(-Math.pow((tv - 0.17) / 0.16, 2.0)) * Math.pow(Math.abs(sinA), 2.2);
-        var rx = halfW * widthCurve * (1.0 + 0.055 * armZone);
+        // Realistic flat-draped studio T-shirt cross-section (not a round barrel!)
+        var armZone = Math.exp(-Math.pow((tv - 0.16) / 0.15, 2.0)) * Math.pow(Math.abs(sinA), 2.0);
+        var rx = halfW * widthCurve * (1.0 + 0.04 * armZone);
         var chestCurve = isFront
-          ? (0.085 * Math.sin(Math.min(1, tv * 1.45) * Math.PI) * Math.pow(Math.max(0, cosA), 0.85))
-          : (0.045 * Math.sin(tv * Math.PI) * Math.pow(Math.max(0, -cosA), 0.85));
-        var rz = 0.285 * spec.bodyW + chestCurve + 0.025 * armZone;
+          ? (0.052 * Math.sin(Math.min(1, tv * 1.45) * Math.PI) * Math.pow(Math.max(0, cosA), 1.1))
+          : (0.026 * Math.sin(tv * Math.PI) * Math.pow(Math.max(0, -cosA), 1.1));
+        var rz = 0.175 * spec.bodyW * sizeVis + chestCurve * sizeVis;
 
-        // Soft natural gravity drape folds (stronger near lower hem, smooth on chest)
-        var foldAmp = 0.012 * Math.pow(tv, 1.35);
-        var fold = foldAmp * (Math.sin(ang * 4.0 + tv * 0.9) + 0.45 * Math.cos(ang * 7.0 - tv * 0.6));
-        var hemLip = (tv > 0.95) ? (0.006 * Math.sin(((tv - 0.95) / 0.05) * Math.PI)) : 0.0;
+        var foldAmp = 0.011 * Math.pow(tv, 1.4);
+        var fold = foldAmp * (Math.sin(ang * 4.0 + tv * 0.8) + 0.4 * Math.cos(ang * 7.0 - tv * 0.5));
+        var hemLip = (tv > 0.95) ? (0.005 * Math.sin(((tv - 0.95) / 0.05) * Math.PI)) : 0.0;
         var x = sinA * (rx + fold + hemLip);
         var z = cosA * (rz + fold + hemLip);
 
-        var shoulderDrop = Math.pow(Math.abs(sinA), 1.55) * 0.155 * Math.pow(1 - tv, 1.15);
-        var neckCarve = 0;
-        if (Math.abs(sinA) < 0.42) {
-          var nr = 1.0 - Math.abs(sinA) / 0.42;
-          neckCarve = isFront
-            ? ((spec.neckType === "vneck" || spec.neckType === "polo") ? nr * spec.neckDepth * (1 - tv) * 1.15 : Math.pow(nr, 0.72) * spec.neckDepth * (1 - tv))
-            : Math.pow(nr, 0.7) * 0.045 * (1 - tv);
-        }
+        var shoulderDrop = Math.pow(Math.abs(sinA), 1.65) * 0.135 * sizeVis * Math.pow(1 - tv, 1.2);
+        var neckCarve = (topY - collarYAt(ang)) * Math.pow(1 - tv, 2.6);
         var y = topY - tv * totalH - shoulderDrop - neckCarve;
 
         var uCoord = isFront
@@ -270,7 +277,7 @@
         if (spec.neckType === "polo" && ctv < 0.6) radScale += 0.14 * (0.6 - ctv);
         var cx = cs * rxCol * radScale;
         var cz = cc * rzCol * radScale;
-        var lift = Math.sin(ctv * Math.PI) * spec.collarH;
+        var lift = Math.sin(ctv * Math.PI) * spec.collarH * (0.45 + 0.55 * Math.abs(cc));
         var cy = collarYAt(cAng) + lift;
         var uC = UV_REGIONS.neckRib.x + ctu * UV_REGIONS.neckRib.w;
         var vC = UV_REGIONS.neckRib.y + ctv * UV_REGIONS.neckRib.h;
@@ -330,13 +337,13 @@
 
       // Embed sleeve root deeply inside the upper shoulder/armhole so there is ZERO gap or step!
       var isLong = (spec.id === "longsleeve" || spec.id === "hoodie");
-      var rootEmbed = halfW * 0.34;
+      var rootEmbed = halfW * 0.28;
       var startX = side * (halfW - rootEmbed);
-      var shoulderTopY = topY - 0.145;
-      var baseRadY = Math.max(spec.sleeveRad * 1.18, 0.255 * spec.bodyW);
-      var baseRadZ = Math.max(spec.sleeveRad * 1.10, 0.265 * spec.bodyW);
-      var startY = shoulderTopY - baseRadY * 0.88;
-      var totalLen = spec.sleeveLen + rootEmbed * 0.88;
+      var shoulderTopY = topY - 0.125 * sizeVis;
+      var baseRadY = Math.max(spec.sleeveRad * 1.06, 0.215 * spec.bodyW) * sizeVis;
+      var baseRadZ = 0.168 * spec.bodyW * sizeVis;
+      var startY = shoulderTopY - baseRadY * 0.92;
+      var totalLen = (spec.sleeveLen * sizeVis) + rootEmbed * 0.80;
       var angleMax = spec.sleeveDrop;
 
       // Quadratic smooth centerline: flows horizontally out of shoulder dome, then drapes down with gravity
@@ -363,8 +370,8 @@
         // Smooth taper from anatomical shoulder oval -> relaxed draped sleeve -> stitched cuff
         var blendCap = Math.pow(1 - tl, 1.6);
         var taper = isLong ? (1.0 - 0.46 * Math.pow(tl, 0.85)) : (1.0 - 0.24 * tl);
-        var radY = baseRadY * blendCap + (spec.sleeveRad * 1.06 * taper) * (1 - blendCap);
-        var radZ = baseRadZ * blendCap + (spec.sleeveRad * 0.90 * taper) * (1 - blendCap);
+        var radY = baseRadY * blendCap + (spec.sleeveRad * 0.96 * sizeVis * taper) * (1 - blendCap);
+        var radZ = baseRadZ * blendCap + (0.135 * spec.bodyW * sizeVis * taper) * (1 - blendCap);
         var cuffLip = (tl > 0.92) ? (0.005 * Math.sin(((tl - 0.92) / 0.08) * Math.PI)) : 0.0;
 
         var srow = [];
@@ -388,8 +395,8 @@
 
       for (var sl2 = 0; sl2 < sSegL; sl2++) {
         for (var sr2 = 0; sr2 < sSegR; sr2++) {
-          if (side > 0) addQuad(sGrid[sl2][sr2], sGrid[sl2 + 1][sr2], sGrid[sl2 + 1][sr2 + 1], sGrid[sl2][sr2 + 1]);
-          else addQuad(sGrid[sl2][sr2], sGrid[sl2][sr2 + 1], sGrid[sl2 + 1][sr2 + 1], sGrid[sl2 + 1][sr2]);
+          if (side > 0) addQuad(sGrid[sl2][sr2], sGrid[sl2][sr2 + 1], sGrid[sl2 + 1][sr2 + 1], sGrid[sl2 + 1][sr2]);
+          else addQuad(sGrid[sl2][sr2], sGrid[sl2 + 1][sr2], sGrid[sl2 + 1][sr2 + 1], sGrid[sl2][sr2 + 1]);
         }
       }
 
@@ -562,24 +569,29 @@
   }
 
   function drawTShirtDemo(ctx, W, H, baseCol) {
-    var fr = UV_REGIONS.front, bk = UV_REGIONS.back, rs = UV_REGIONS.rightSleeve;
+    var fr = UV_REGIONS.front, bk = UV_REGIONS.back;
     ctx.save();
-    function drawTribal(x, y, w, h) {
-      ctx.fillStyle = "#141414"; ctx.fillRect(x, y, w, h);
-      for (var yy = y; yy < y + h; yy += 28) {
-        ctx.fillStyle = "#f8f5ef";
-        ctx.beginPath(); ctx.moveTo(x + 4, yy + 4); ctx.lineTo(x + w * 0.5, yy + 14); ctx.lineTo(x + 4, yy + 24); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = baseCol || "#7a1c1c"; ctx.fillRect(x + w * 0.55, yy + 5, w * 0.36, 18);
-        ctx.fillStyle = "#f8f5ef"; ctx.fillRect(x + w * 0.64, yy + 10, w * 0.18, 8);
-      }
-    }
-    drawTribal(fr.x * W + 18, fr.y * H, 118, fr.h * H);
-    drawTribal(bk.x * W + bk.w * W - 136, bk.y * H, 118, bk.h * H);
-    drawTribal(rs.x * W, rs.y * H + 12, rs.w * W, rs.h * H - 24);
-    var cx = (fr.x + fr.w * 0.66) * W, cy = (fr.y + fr.h * 0.44) * H;
-    ctx.fillStyle = "#f8f5ef"; ctx.strokeStyle = "#111111"; ctx.lineWidth = 6;
-    ctx.fillRect(cx - 54, cy - 84, 108, 168); ctx.strokeRect(cx - 54, cy - 84, 108, 168);
-    ctx.beginPath(); ctx.moveTo(cx - 22, cy - 24); ctx.lineTo(cx + 8, cy + 6); ctx.moveTo(cx + 8, cy - 24); ctx.lineTo(cx - 22, cy + 6); ctx.stroke();
+    // Clean flagship minimalist studio chest graphic (symmetric, zero weird sleeve stripes!)
+    var fx = (fr.x + fr.w * 0.50) * W;
+    var fy = (fr.y + fr.h * 0.34) * H;
+    ctx.strokeStyle = "rgba(248, 250, 252, 0.88)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(fx - 125, fy - 48, 250, 96);
+    ctx.fillStyle = "rgba(248, 250, 252, 0.95)";
+    ctx.font = "900 34px Inter, Segoe UI, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("DESIGN360N", fx, fy - 8);
+    ctx.fillStyle = "rgba(111, 232, 192, 0.95)";
+    ctx.font = "700 16px Inter, Segoe UI, sans-serif";
+    ctx.fillText("STUDIO EDITION • 260 GSM", fx, fy + 24);
+
+    // Subtle back yoke emblem
+    var bx = (bk.x + bk.w * 0.50) * W;
+    var by = (bk.y + bk.h * 0.24) * H;
+    ctx.fillStyle = "rgba(248, 250, 252, 0.78)";
+    ctx.font = "800 22px Inter, Segoe UI, sans-serif";
+    ctx.fillText("D360N", bx, by);
     ctx.restore();
   }
 
@@ -885,7 +897,7 @@
       labelBrand: "DESIGN360N", labelMeta: "100% COTTON • MADE IN BANGLADESH",
       fullPatternImg: null, fullBottleImg: null,
       layers: [], bottleLayers: [],
-      rotY: 0.25, rotX: 0.06, zoom: 2.68, panY: -0.02, autoRotate: false
+      rotY: 0.18, rotX: 0.05, zoom: 3.55, panY: 0.02, autoRotate: false
     };
 
     this.atlasCanvas = createTextureAtlas();
