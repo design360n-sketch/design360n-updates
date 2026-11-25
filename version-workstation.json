@@ -23,6 +23,6 @@
     "host/index.jsx",
     "CSXS/manifest.xml"
   ],
-  "notes": "License chip shows a short expiry date (Pro \u2022 20 Dec 26) with the full date as a tooltip; header overflow guard so the logo + title never collide with the status pills.",
-  "version": "17.7.12"
+  "notes": "Seal Maker precision rework: whole-line measurement with geometricBounds, balanced 2-line split, 3-pass fit inside max width/height; proportional arc text with per-glyph widths.",
+  "version": "17.7.13"
 }

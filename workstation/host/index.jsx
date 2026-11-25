@@ -2704,7 +2704,7 @@ function dmGenerateCalendarAI(payloadJSON) {
     }
 }
 
-/* --- Seal Maker: round / oval rubber-stamp seal, true vector (v17.7.5) --- */
+/* --- Seal Maker: round / oval rubber-stamp seal, true vector (v17.7.13 precision) --- */
 function dmSealColor(doc, name) {
     var isRGB = (doc && doc.documentColorSpace === DocumentColorSpace.RGB);
     var c;
@@ -2723,108 +2723,147 @@ function dmSealColor(doc, name) {
     return c;
 }
 
-function dmSealLineText(grp, str, cx, yCenterPt, size, col, fontObj, maxW) {
-    // Straight centred line(s), built one character frame at a time — the
-    // same proven primitive as the arc text. A plain multi-character frame
-    // does not reliably land where it is told to (v17.7.6's inner text still
-    // ended up at the bottom of the artboard), so no such frame is used here.
-    // If one line cannot fit at a readable size, the text splits into two
-    // lines at the space nearest the middle.
+function dmSealLineText(grp, str, cx, yCenterPt, size, col, fontObj, maxW, maxH) {
     if (!str) return null;
-    function measure(txt, s) {
-        var tot = 0;
-        for (var k = 0; k < txt.length; k++) {
-            var t = grp.textFrames.add();
-            t.contents = txt.charAt(k);
-            var c = t.textRange.characterAttributes;
-            c.size = s; c.fillColor = col;
-            if (fontObj) { try { c.textFont = fontObj; } catch (eF) {} }
-            tot += t.width;
-            t.remove();
-        }
-        return tot;
+    str = String(str).replace(/^\s+|\s+$/g, "");
+    if (!str) return null;
+
+    function measureLine(txt, s) {
+        var t = grp.textFrames.add();
+        t.contents = txt;
+        var c = t.textRange.characterAttributes;
+        c.size = s; c.fillColor = col;
+        if (fontObj) { try { c.textFont = fontObj; } catch (eF) {} }
+        var w = t.width;
+        try {
+            var gb = t.geometricBounds;
+            var gw = Math.abs(gb[2] - gb[0]);
+            if (gw > 0) w = Math.max(w, gw);
+        } catch (eM) {}
+        t.remove();
+        return w;
     }
+
     var lines = [str];
     var sz = size;
-    if (maxW) {
-        var w0 = measure(str, sz);
-        if (w0 > maxW) {
-            var minSz = 7;
-            var s2 = Math.max(minSz, sz * (maxW / w0));
-            if (s2 <= minSz + 0.01) {
-                var sp = -1, best = -1;
-                for (var i2 = 0; i2 < str.length; i2++) {
-                    if (str.charAt(i2) === ' ') {
-                        var d = Math.abs(i2 - str.length / 2);
-                        if (best < 0 || d < best) { best = d; sp = i2; }
-                    }
+
+    // Split into 2 balanced lines if single line would shrink below readable threshold
+    if (maxW && str.indexOf(" ") > 0) {
+        var wSingle = measureLine(str, sz);
+        if (wSingle > maxW && (sz * (maxW / wSingle)) < Math.max(5.5, size * 0.72)) {
+            var sp = -1, best = 9999;
+            for (var i2 = 0; i2 < str.length; i2++) {
+                if (str.charAt(i2) === " ") {
+                    var d = Math.abs(i2 - str.length / 2);
+                    if (d < best) { best = d; sp = i2; }
                 }
-                if (sp > 0) { lines = [str.substring(0, sp), str.substring(sp + 1)]; }
-                else { sz = s2; }
-            } else { sz = s2; }
+            }
+            if (sp > 0) {
+                lines = [str.substring(0, sp), str.substring(sp + 1)];
+            }
         }
     }
-    var gap = sz * 1.35;
+
+    // Always re-fit font size so EVERY line stays strictly inside maxW and total height inside maxH!
+    for (var pass = 0; pass < 3; pass++) {
+        if (maxW) {
+            var widest = 0;
+            for (var k = 0; k < lines.length; k++) {
+                var lw = measureLine(lines[k], sz);
+                if (lw > widest) widest = lw;
+            }
+            if (widest > maxW && widest > 0) {
+                sz = Math.max(4.0, sz * (maxW / widest) * 0.96);
+            }
+        }
+        if (maxH) {
+            var totalH = (lines.length === 1) ? (sz * 0.95) : (sz * 0.95 + (lines.length - 1) * sz * 1.25);
+            if (totalH > maxH && totalH > 0) {
+                sz = Math.max(4.0, sz * (maxH / totalH) * 0.95);
+            }
+        }
+    }
+
+    var gap = sz * 1.25;
     for (var li = 0; li < lines.length; li++) {
         var line = lines[li];
-        var ly = (lines.length === 1) ? yCenterPt : yCenterPt + (lines.length - 1) * gap / 2 - li * gap;
-        var frames = [], tot = 0;
-        for (var j = 0; j < line.length; j++) {
-            var f = grp.textFrames.add();
-            f.contents = line.charAt(j);
-            var fc = f.textRange.characterAttributes;
-            fc.size = sz; fc.fillColor = col;
-            if (fontObj) { try { fc.textFont = fontObj; } catch (eF) {} }
-            frames.push(f);
-            tot += f.width;
-        }
-        var x = cx - tot / 2;
-        for (var m = 0; m < frames.length; m++) {
-            var fr = frames[m];
-            var w = fr.width, h = fr.height;
-            fr.position = [x, ly + h / 2];
-            try {
-                var gb = fr.geometricBounds;
-                var ax = (gb[0] + gb[2]) / 2, ay = (gb[1] + gb[3]) / 2;
-                var pos = fr.position;
-                fr.position = [pos[0] + (x + w / 2 - ax), pos[1] + (ly - ay)];
-            } catch (eG) {}
-            x += w;
-        }
+        var ly = (lines.length === 1) ? yCenterPt : (yCenterPt + (lines.length - 1) * gap / 2 - li * gap);
+        var tf = grp.textFrames.add();
+        tf.contents = line;
+        var fc = tf.textRange.characterAttributes;
+        fc.size = sz; fc.fillColor = col;
+        if (fontObj) { try { fc.textFont = fontObj; } catch (eF2) {} }
+        try { tf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (eJ) {}
+        tf.position = [cx - tf.width / 2, ly + tf.height / 2];
+        try {
+            var gb2 = tf.geometricBounds;
+            var ax = (gb2[0] + gb2[2]) / 2, ay = (gb2[1] + gb2[3]) / 2;
+            var pos = tf.position;
+            tf.position = [pos[0] + (cx - ax), pos[1] + (ly - ay)];
+        } catch (eG) {}
     }
     return true;
 }
 
-function dmSealArcText(grp, str, cx, cy, rxE, ryE, aStartDeg, aEndDeg, fs, col, fontObj) {
-    // Ring text WITHOUT textPath (that API does not reliably place text on a
-    // path — v17.7.5's ring text fell off the circle): one small text frame
-    // per character, each centred on the arc and rotated so its top points
-    // radially outward. Angles are document coords (Y up): 90 deg = top of
-    // the seal. Characters run left -> right, so the first character sits at
-    // the LEFT end of the arc (the larger angle).
+function dmSealArcText(grp, str, cx, cy, rxE, ryE, maxSpanDeg, fs, col, fontObj) {
+    // Precision proportional arc text: measures each glyph's real width so 'I' and 'M'
+    // space naturally, strictly centered at 90 deg (12 o'clock), with glyph centers
+    // locked dead-center on the (rxE, ryE) ellipse track.
     var n = str.length;
     if (n === 0) return;
-    var span = aStartDeg - aEndDeg;
+
+    var chars = [];
+    var widths = [];
+    var totalW = 0;
+    var tracking = fs * 0.08;
     for (var i = 0; i < n; i++) {
-        var frac = (i + 0.5) / n;
-        var aDeg = aStartDeg - span * frac;
-        var aRad = aDeg * Math.PI / 180;
-        var px = cx + rxE * Math.cos(aRad);
-        var py = cy + ryE * Math.sin(aRad);
+        var ch = str.charAt(i);
         var tf = grp.textFrames.add();
-        tf.contents = str.charAt(i);
+        tf.contents = (ch === " ") ? "i" : ch;
         var ca = tf.textRange.characterAttributes;
         ca.size = fs;
         ca.fillColor = col;
         if (fontObj) { try { ca.textFont = fontObj; } catch (eF) {} }
-        tf.position = [px - tf.width / 2, py + tf.height / 2];
-        try {
-            var gb = tf.geometricBounds;
-            var ax = (gb[0] + gb[2]) / 2, ay = (gb[1] + gb[3]) / 2;
-            var pos = tf.position;
-            tf.position = [pos[0] + (px - ax), pos[1] + (py - ay)];
-        } catch (eG) {}
-        try { tf.rotate(aDeg - 90, true, true, true, true, Transformation.CENTER); } catch (eR) {}
+        var w = (ch === " ") ? (fs * 0.36) : Math.max(fs * 0.24, tf.width);
+        if (ch === " ") {
+            tf.remove();
+            chars.push(null);
+        } else {
+            chars.push(tf);
+        }
+        widths.push(w);
+        totalW += w + (i < n - 1 ? tracking : 0);
+    }
+
+    var rAvg = (rxE + ryE) / 2;
+    var naturalSpanDeg = (totalW / Math.max(1, rAvg)) * (180 / Math.PI);
+    var spanDeg = Math.min(maxSpanDeg, Math.max(naturalSpanDeg, Math.min(maxSpanDeg, 120)));
+    var aStartDeg = 90 + spanDeg / 2;
+
+    var curW = 0;
+    for (var j = 0; j < n; j++) {
+        var midW = curW + widths[j] / 2;
+        var frac = (totalW > 0) ? (midW / totalW) : ((j + 0.5) / n);
+        var aDeg = aStartDeg - spanDeg * frac;
+        var aRad = aDeg * Math.PI / 180;
+        var px = cx + rxE * Math.cos(aRad);
+        var py = cy + ryE * Math.sin(aRad);
+        var tf2 = chars[j];
+        if (tf2) {
+            tf2.position = [px - tf2.width / 2, py + tf2.height / 2];
+            try {
+                var gb = tf2.geometricBounds;
+                var ax = (gb[0] + gb[2]) / 2, ay = (gb[1] + gb[3]) / 2;
+                var pos = tf2.position;
+                tf2.position = [pos[0] + (px - ax), pos[1] + (py - ay)];
+            } catch (eG) {}
+            // Tangent angle on ellipse for clean perpendicular alignment on both Round & Oval seals
+            var tx = -rxE * Math.sin(aRad);
+            var ty =  ryE * Math.cos(aRad);
+            var rotDeg = (Math.atan2(ty, tx) * 180 / Math.PI) + 180;
+            try { tf2.rotate(rotDeg, true, true, true, true, Transformation.CENTER); } catch (eR) {}
+        }
+        curW += widths[j] + tracking;
     }
 }
 
@@ -2860,7 +2899,7 @@ function dmGenerateSeal(payloadJSON) {
         var cy = (ab[1] + ab[3]) / 2;
         var diaPt = diaMm * MM_TO_PT;
         var rx = diaPt / 2;
-        var ry = (shape === "oval") ? diaPt * 0.36 : diaPt / 2; // oval: height = 72% of width
+        var ry = (shape === "oval") ? diaPt * 0.36 : diaPt / 2;
         var rMin = Math.min(rx, ry);
         var col = dmSealColor(doc, colName);
 
@@ -2868,50 +2907,50 @@ function dmGenerateSeal(payloadJSON) {
         var grp = lyr.groupItems.add();
         grp.name = "Seal_" + Math.round(diaMm) + "mm";
 
-        // Outer ring(s) — stroke-only true vector.
-        var outerW = Math.max(0.75, diaPt * 0.012);
+        // Outer ring(s) — balanced classic rubber-stamp track ratio (inF = 0.72)
+        var inF = 0.72;
+        var outerW = Math.max(1.0, diaPt * 0.015);
+        var innerW = Math.max(0.7, outerW * 0.62);
         var ring = grp.pathItems.ellipse(cy + ry, cx - rx, rx * 2, ry * 2);
         ring.filled = false; ring.stroked = true; ring.strokeColor = col; ring.strokeWidth = outerW;
         if (rings === "double") {
-            var inF = 0.78;
             var ring2 = grp.pathItems.ellipse(cy + ry * inF, cx - rx * inF, rx * inF * 2, ry * inF * 2);
-            ring2.filled = false; ring2.stroked = true; ring2.strokeColor = col; ring2.strokeWidth = Math.max(0.6, outerW * 0.6);
+            ring2.filled = false; ring2.stroked = true; ring2.strokeColor = col; ring2.strokeWidth = innerW;
         }
 
-        var fontObj = dmFindTextFont("Arial");
+        var fontObj = dmFindTextFont("Arial Bold") || dmFindTextFont("Arial-BoldMT") || dmFindTextFont("Arial");
 
-        // Outer text on a top arc (250 deg, centred on the top, gap at the
-        // bottom). One frame per character, placed on the arc and rotated so
-        // glyph tops point outward — no textPath, so it cannot fall off the
-        // ring. The glyph-centre radius is pulled in from the ring by half
-        // the cap height so no letter pokes outside the ring.
+        // Outer ring text: dead-centered in the track between outer & inner rings, capped to 56% of track height!
         if (outerText) {
-            var fs = Math.min(diaPt * 0.16, 24);
-            var rTxtX = rx, rTxtY = ry;
-            for (var it = 0; it < 40; it++) {
-                var capH = 0.72 * fs;
-                rTxtX = rx - 2 - capH / 2;
-                rTxtY = ry - 2 - capH / 2;
-                var rAvg = (rTxtX + rTxtY) / 2;
-                var arcLen = (250 * Math.PI / 180) * rAvg;
-                if (fs <= 5) break;
-                if (outerText.length * fs * 0.62 <= arcLen * 0.92) break;
-                fs -= 0.5;
-            }
-            if (rTxtX < 8) rTxtX = 8;
-            if (rTxtY < 8) rTxtY = 8;
-            dmSealArcText(grp, outerText, cx, cy, rTxtX, rTxtY, 215, -35, fs, col, fontObj);
+            var trackFrac = (rings === "double") ? ((1 + inF) / 2) : 0.86;
+            var rTxtX = rx * trackFrac;
+            var rTxtY = ry * trackFrac;
+            var trackW = (rings === "double") ? (rMin * (1 - inF) - (outerW + innerW) * 0.6) : (rMin * 0.24);
+            var maxFsByTrack = Math.max(4.5, (trackW * 0.56) / 0.72);
+            var maxSpanDeg = 215;
+            var rAvg = (rTxtX + rTxtY) / 2;
+            var maxArcLen = (maxSpanDeg * Math.PI / 180) * rAvg * 0.90;
+            var fsByArc = maxArcLen / Math.max(1, outerText.length * 0.72);
+            var fs = Math.max(4.5, Math.min(maxFsByTrack, fsByArc, 22));
+            dmSealArcText(grp, outerText, cx, cy, rTxtX, rTxtY, maxSpanDeg, fs, col, fontObj);
         }
 
-        // Centre element: star (filled 5-point polygon) or centre text lines.
+        // Inner cavity safe dimensions (with generous margin from inner ring)
+        var riX = (rings === "double") ? (rx * inF - innerW * 0.8) : (rx * 0.72);
+        var riY = (rings === "double") ? (ry * inF - innerW * 0.8) : (ry * 0.72);
+        var hasInner = !!innerText.replace(/^\s+|\s+$/g, "");
+
+        // Centre element: star or centre text
         if (centre === "star") {
-            var sR = rMin * 0.32, sRi = sR * 0.42;
+            var starCy = hasInner ? (cy + riY * 0.22) : cy;
+            var sR = Math.min(riX, riY) * (hasInner ? 0.34 : 0.42);
+            var sRi = sR * 0.42;
             var starPts = [];
             for (var s = 0; s < 10; s++) {
                 var aDeg = 90 - s * 36;
                 var aRad = aDeg * Math.PI / 180;
                 var rr = (s % 2 === 0) ? sR : sRi;
-                starPts.push([cx + rr * Math.cos(aRad), cy + rr * Math.sin(aRad)]);
+                starPts.push([cx + rr * Math.cos(aRad), starCy + rr * Math.sin(aRad)]);
             }
             var star = grp.pathItems.add();
             star.setEntirePath(starPts);
@@ -2919,29 +2958,29 @@ function dmGenerateSeal(payloadJSON) {
             star.filled = true; star.fillColor = col;
             star.stroked = false;
         } else if (centre === "text") {
-            var cSize = Math.max(6, Math.min(16, diaPt * 0.11));
-            var cMaxW = rMin * 1.45;
-            var lines = [];
-            if (centre1) lines.push(centre1);
-            if (centre2) lines.push(centre2);
-            if (lines.length === 1) {
-                dmSealLineText(grp, lines[0], cx, cy, cSize, col, fontObj, cMaxW);
-            } else if (lines.length === 2) {
-                dmSealLineText(grp, lines[0], cx, cy + cSize * 0.55, cSize, col, fontObj, cMaxW);
-                dmSealLineText(grp, lines[1], cx, cy - cSize * 0.55, cSize, col, fontObj, cMaxW);
+            var cCy = hasInner ? (cy + riY * 0.20) : cy;
+            var cSize = Math.max(5.5, Math.min(13, diaPt * 0.095));
+            var cMaxW = riX * 1.50;
+            var cLines = [];
+            if (centre1) cLines.push(centre1);
+            if (centre2) cLines.push(centre2);
+            if (cLines.length === 1) {
+                dmSealLineText(grp, cLines[0], cx, cCy, cSize, col, fontObj, cMaxW, riY * 0.45);
+            } else if (cLines.length === 2) {
+                dmSealLineText(grp, cLines[0], cx, cCy + cSize * 0.58, cSize, col, fontObj, cMaxW, riY * 0.28);
+                dmSealLineText(grp, cLines[1], cx, cCy - cSize * 0.58, cSize, col, fontObj, cMaxW, riY * 0.28);
             }
         }
 
-        // Inner text line — straight, centred below the centre element.
-        // Max width is the chord of the innermost ring at that height, so the
-        // line never crosses the ring.
-        if (innerText) {
-            var iSize = Math.max(5, Math.min(12, diaPt * 0.085));
-            var dyIn = ry * 0.52;
-            var riX = (rings === "double") ? rx * 0.78 : rx;
-            var riY = (rings === "double") ? ry * 0.78 : ry;
-            var chordIn = 2 * riX * Math.sqrt(Math.max(0, 1 - (dyIn / riY) * (dyIn / riY))) * 0.95;
-            dmSealLineText(grp, innerText, cx, cy - dyIn, iSize, col, fontObj, chordIn);
+        // Inner text line — cleanly inside the lower inner cavity, strictly bounded by chord width!
+        if (hasInner) {
+            var iSize = Math.max(4.8, Math.min(9.5, diaPt * 0.072));
+            var dyIn = (centre === "none") ? 0 : (riY * 0.36);
+            var maxBlockH = riY * 0.40;
+            // Measure chord at the bottom of the text block so even 2nd line NEVER touches inner ring!
+            var yWorst = Math.min(riY * 0.86, dyIn + maxBlockH * 0.52);
+            var chordAtBottom = 2 * riX * Math.sqrt(Math.max(0.08, 1 - (yWorst / riY) * (yWorst / riY))) * 0.86;
+            dmSealLineText(grp, innerText, cx, cy - dyIn, iSize, col, fontObj, chordAtBottom, maxBlockH);
         }
 
         try { app.executeMenuCommand("fitinwindow"); } catch (eF2) {}
