@@ -2723,32 +2723,76 @@ function dmSealColor(doc, name) {
     return c;
 }
 
-function dmSealCenteredText(grp, str, cx, yCenterPt, size, col, fontObj, maxW) {
+function dmSealLineText(grp, str, cx, yCenterPt, size, col, fontObj, maxW) {
+    // Straight centred line(s), built one character frame at a time — the
+    // same proven primitive as the arc text. A plain multi-character frame
+    // does not reliably land where it is told to (v17.7.6's inner text still
+    // ended up at the bottom of the artboard), so no such frame is used here.
+    // If one line cannot fit at a readable size, the text splits into two
+    // lines at the space nearest the middle.
     if (!str) return null;
-    var tf = grp.textFrames.add();
-    tf.contents = str;
-    var ca = tf.textRange.characterAttributes;
-    ca.size = size;
-    ca.fillColor = col;
-    if (fontObj) { try { ca.textFont = fontObj; } catch (eF) {} }
-    try { tf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (eJ) {}
-    if (maxW && tf.width > maxW) {
-        var ns = Math.max(5, size * (maxW / tf.width));
-        ca.size = ns;
-    }
-    tf.position = [cx - tf.width / 2, yCenterPt + tf.height / 2];
-    // Self-correct: measure the real bounds and shift so the frame is truly
-    // centred at (cx, yCenterPt), whatever the frame's anchor semantics are.
-    try {
-        var gb = tf.geometricBounds;
-        var ax = (gb[0] + gb[2]) / 2, ay = (gb[1] + gb[3]) / 2;
-        var dx = cx - ax, dy = yCenterPt - ay;
-        if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
-            var pos = tf.position;
-            tf.position = [pos[0] + dx, pos[1] + dy];
+    function measure(txt, s) {
+        var tot = 0;
+        for (var k = 0; k < txt.length; k++) {
+            var t = grp.textFrames.add();
+            t.contents = txt.charAt(k);
+            var c = t.textRange.characterAttributes;
+            c.size = s; c.fillColor = col;
+            if (fontObj) { try { c.textFont = fontObj; } catch (eF) {} }
+            tot += t.width;
+            t.remove();
         }
-    } catch (eG) {}
-    return tf;
+        return tot;
+    }
+    var lines = [str];
+    var sz = size;
+    if (maxW) {
+        var w0 = measure(str, sz);
+        if (w0 > maxW) {
+            var minSz = 7;
+            var s2 = Math.max(minSz, sz * (maxW / w0));
+            if (s2 <= minSz + 0.01) {
+                var sp = -1, best = -1;
+                for (var i2 = 0; i2 < str.length; i2++) {
+                    if (str.charAt(i2) === ' ') {
+                        var d = Math.abs(i2 - str.length / 2);
+                        if (best < 0 || d < best) { best = d; sp = i2; }
+                    }
+                }
+                if (sp > 0) { lines = [str.substring(0, sp), str.substring(sp + 1)]; }
+                else { sz = s2; }
+            } else { sz = s2; }
+        }
+    }
+    var gap = sz * 1.35;
+    for (var li = 0; li < lines.length; li++) {
+        var line = lines[li];
+        var ly = (lines.length === 1) ? yCenterPt : yCenterPt + (lines.length - 1) * gap / 2 - li * gap;
+        var frames = [], tot = 0;
+        for (var j = 0; j < line.length; j++) {
+            var f = grp.textFrames.add();
+            f.contents = line.charAt(j);
+            var fc = f.textRange.characterAttributes;
+            fc.size = sz; fc.fillColor = col;
+            if (fontObj) { try { fc.textFont = fontObj; } catch (eF) {} }
+            frames.push(f);
+            tot += f.width;
+        }
+        var x = cx - tot / 2;
+        for (var m = 0; m < frames.length; m++) {
+            var fr = frames[m];
+            var w = fr.width, h = fr.height;
+            fr.position = [x, ly + h / 2];
+            try {
+                var gb = fr.geometricBounds;
+                var ax = (gb[0] + gb[2]) / 2, ay = (gb[1] + gb[3]) / 2;
+                var pos = fr.position;
+                fr.position = [pos[0] + (x + w / 2 - ax), pos[1] + (ly - ay)];
+            } catch (eG) {}
+            x += w;
+        }
+    }
+    return true;
 }
 
 function dmSealArcText(grp, str, cx, cy, rxE, ryE, aStartDeg, aEndDeg, fs, col, fontObj) {
@@ -2881,10 +2925,10 @@ function dmGenerateSeal(payloadJSON) {
             if (centre1) lines.push(centre1);
             if (centre2) lines.push(centre2);
             if (lines.length === 1) {
-                dmSealCenteredText(grp, lines[0], cx, cy, cSize, col, fontObj, cMaxW);
+                dmSealLineText(grp, lines[0], cx, cy, cSize, col, fontObj, cMaxW);
             } else if (lines.length === 2) {
-                dmSealCenteredText(grp, lines[0], cx, cy + cSize * 0.55, cSize, col, fontObj, cMaxW);
-                dmSealCenteredText(grp, lines[1], cx, cy - cSize * 0.55, cSize, col, fontObj, cMaxW);
+                dmSealLineText(grp, lines[0], cx, cy + cSize * 0.55, cSize, col, fontObj, cMaxW);
+                dmSealLineText(grp, lines[1], cx, cy - cSize * 0.55, cSize, col, fontObj, cMaxW);
             }
         }
 
@@ -2897,7 +2941,7 @@ function dmGenerateSeal(payloadJSON) {
             var riX = (rings === "double") ? rx * 0.78 : rx;
             var riY = (rings === "double") ? ry * 0.78 : ry;
             var chordIn = 2 * riX * Math.sqrt(Math.max(0, 1 - (dyIn / riY) * (dyIn / riY))) * 0.95;
-            dmSealCenteredText(grp, innerText, cx, cy - dyIn, iSize, col, fontObj, chordIn);
+            dmSealLineText(grp, innerText, cx, cy - dyIn, iSize, col, fontObj, chordIn);
         }
 
         try { app.executeMenuCommand("fitinwindow"); } catch (eF2) {}
