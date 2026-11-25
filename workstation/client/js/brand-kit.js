@@ -104,6 +104,40 @@
     return "";
   }
   var bkMockupCache = {};
+  var bkLastPlan = null, bkLastPdfPath = "", bkLastLogoPath = "";
+  /* --- Mockup variety (v17.7.25) ---
+   * DIAGNOSED REPEAT BUG (v17.7.24): the cache was keyed by CATEGORY with
+   * ONE photo per category, the Generate flow only fetched categories NOT
+   * already in the cache, the picker always returned the same top result
+   * for a given query, and the downloader returned the existing file if
+   * present — so every template and every Generate reused the exact same
+   * packaging/cup/signage photo. Fixed: every Generate re-fetches ALL
+   * enabled categories fresh; bkUsedUrls tracks every URL already assigned
+   * in this session and the picker skips them; the fetcher paginates
+   * (pages 1..4) through the whole query chain before ever repeating;
+   * downloaded files are named with a URL hash so a new photo never
+   * serves the stale file. Only when a category is truly exhausted may a
+   * photo repeat — and the status line says so. */
+  var bkUsedUrls = {};
+  function bkHashStr(s) {
+    var h = 0, i;
+    s = String(s || "");
+    for (i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+    return ("0000000" + (h >>> 0).toString(16)).slice(-8);
+  }
+  function bkRealisticScore(r) {
+    /* Prefer REAL photography: penalise illustration / render / 3d /
+     * clip-art / vector / cartoon / AI-generated titles & tags; boost
+     * results that look like real mockup photography. */
+    var tags = (r.tags || []).map(function (t) { return (t && t.name) ? t.name : String(t || ""); }).join(" ");
+    var text = ((r.title || "") + " " + (r.description || "") + " " + tags).toLowerCase();
+    var s = 0;
+    /* The penalty must dwarf the pixel-count term (which can be tens of
+     * millions) — otherwise a huge render still beats a real photo. */
+    if (/illustration|render|3d model|clip ?art|vector|cartoon|drawing|painting|ai[- ]?generated|digital art|computer generated|cgi/.test(text)) s -= 50000000;
+    if (/photo|photograph|mockup|real/.test(text)) s += 150000;
+    return s;
+  }
   var bkMockupBusy = false;
   var bkPlanFn = null;
   var bkLogoFilePath = "";
@@ -137,14 +171,19 @@
     if (!r || !r.url) return false;
     return /\.(jpe?g|png)(\?|#|$)/i.test(r.url);
   }
-  function bkPickBest(results) {
-    var usable = (results || []).filter(bkUsableImage);
+  function bkPickBest(results, exclude) {
+    /* exclude: map of URLs already used elsewhere this session — a photo
+     * may be picked only once per generation. Realism (bkRealisticScore)
+     * is scored alongside the existing flat/front-on, landscape, largest,
+     * CC0/pdm rules. */
+    var usable = (results || []).filter(function (r) { return bkUsableImage(r) && !(exclude && exclude[r.url]); });
     if (usable.length === 0) return null;
     function score(r) {
       var s = (r.width || 0) * (r.height || 0);
       if ((r.width || 0) >= (r.height || 0)) s += 1000000;
       if (r.license === "cc0" || r.license === "pdm") s += 500000;
       if (/flat|front view|straight|overhead/i.test(r.title || "")) s += 300000;
+      s += bkRealisticScore(r);
       return s;
     }
     usable.sort(function (a, b) { return score(b) - score(a); });
@@ -153,9 +192,16 @@
   function bkQueryURL(q, page) {
     return BK_MOCKUP_API + "?q=" + encodeURIComponent(q) + "&page_size=8&license_type=commercial&page=" + (page || 1);
   }
-  function bkFetchCategory(cat, industry, mood, page, done) {
+  function bkFetchCategory(cat, industry, mood, page, done, exclude) {
+    /* Fetches ONE distinct photo for a category: walks the query chain
+     * (mood + industry + query, industry + query, bare query) and paginates
+     * pages startPage..startPage+3, skipping every URL in `exclude`
+     * (already used elsewhere). done(best, repeated) — repeated is true
+     * only in the last-resort path below, when the category is truly
+     * exhausted and a photo had to repeat rather than leave the zone
+     * blank. At most 12 API attempts per category before that fallback. */
     var def = BK_MOCKUPS[cat];
-    if (!def) { done(null); return; }
+    if (!def) { done(null, false); return; }
     var queries = [];
     var qi;
     for (qi = 0; qi < def.queries.length; qi++) {
@@ -163,24 +209,52 @@
       if (industry) queries.push(industry + " " + def.queries[qi]);
       queries.push(def.queries[qi]);
     }
-    var i = 0;
-    function next() {
-      if (i >= queries.length) { done(null); return; }
+    var startPage = page || 1, maxPage = startPage + 3, pg = startPage, i = 0, attempts = 0, triedRepeat = false;
+    function tryNext() {
+      if (attempts >= 12) { tryRepeat(); return; }
+      if (i >= queries.length) {
+        i = 0; pg++;
+        if (pg > maxPage) { tryRepeat(); return; }
+      }
       var q = queries[i++];
-      bkFetchJSON(bkQueryURL(q, page), 12000).then(function (j) {
-        var best = j ? bkPickBest(j.results) : null;
-        if (best) done(best);
-        else next();
+      attempts++;
+      bkFetchJSON(bkQueryURL(q, pg), 12000).then(function (j) {
+        var best = j ? bkPickBest(j.results, exclude) : null;
+        if (best) done(best, false);
+        else tryNext();
       });
     }
-    next();
+    function tryRepeat() {
+      /* Last resort: allow a photo already used elsewhere rather than
+       * leaving the zone blank. The caller reports it in the status. */
+      if (triedRepeat) { done(null, false); return; }
+      triedRepeat = true;
+      i = 0; pg = startPage;
+      function nextRepeat() {
+        if (i >= queries.length) {
+          i = 0; pg++;
+          if (pg > maxPage) { done(null, false); return; }
+        }
+        var q = queries[i++];
+        bkFetchJSON(bkQueryURL(q, pg), 12000).then(function (j) {
+          var best = j ? bkPickBest(j.results, null) : null;
+          if (best) done(best, true);
+          else nextRepeat();
+        });
+      }
+      nextRepeat();
+    }
+    tryNext();
   }
   function bkDownloadImage(url, filename, done) {
     var n = bkNode();
     var dir = bkTempDir();
     if (!n || !dir) { done(null); return; }
     var ext = /\.png(\?|#|$)/i.test(url) ? ".png" : ".jpg";
-    var full = n.path.join(dir, filename + ext);
+    /* v17.7.25: the URL hash in the filename stops a fresh photo from
+     * serving the stale file of the same category (the old plain
+     * "<cat>.jpg" name did exactly that). */
+    var full = n.path.join(dir, filename + "_" + bkHashStr(url) + ext);
     if (n.fs.existsSync(full)) { done(full); return; }
     var timer = setTimeout(function () { done(null); }, 20000);
     fetch(url).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.arrayBuffer(); }).then(function (ab) {
@@ -265,15 +339,25 @@
     return out;
   }
   function bkFetchAll(cats, industry, mood, progress, done) {
-    var idx = 0;
+    /* v17.7.25: every category is fetched fresh with the session-wide
+     * used-URL set as the exclude list, so no photo URL is assigned twice
+     * in one generation. done(repeats) — the categories (if any) whose
+     * photo had to repeat because the category ran out of distinct photos. */
+    var idx = 0, repeats = [];
     function next() {
-      if (idx >= cats.length) { done(); return; }
+      if (idx >= cats.length) { done(repeats); return; }
       var cat = cats[idx++];
       if (progress) progress(cat, idx, cats.length);
-      bkFetchCategory(cat, industry, mood, 1, function (best) {
+      bkFetchCategory(cat, industry, mood, 1, function (best, repeated) {
         if (!best) { next(); return; }
+        if (repeated) repeats.push(cat);
         bkDownloadImage(best.url, cat, function (localPath) {
           if (localPath) {
+            /* v17.7.25: a URL is NEVER removed from bkUsedUrls — once a
+             * photo was used in this session it stays excluded, so a
+             * later Generate can never re-pick an earlier generation's
+             * photo (deleting the old URL here was the repeat bug). */
+            bkUsedUrls[best.url] = true;
             bkMockupCache[cat] = { url: best.url, localPath: localPath, title: best.title || cat, license: best.license || "", creator: best.creator || "", width: best.width || 0, height: best.height || 0, tone: "busy" };
             bkSampleFileTone(localPath, function (tone) {
               bkMockupCache[cat].tone = tone;
@@ -281,7 +365,7 @@
             });
           } else next();
         });
-      });
+      }, bkUsedUrls);
     }
     next();
   }
@@ -325,19 +409,28 @@
         if (!plan || bkMockupBusy) return;
         var st = document.getElementById("bkMockupStatus");
         if (st) st.textContent = "Swapping " + (BK_MOCKUPS[cat] ? BK_MOCKUPS[cat].label : cat) + " mockup…";
-        bkFetchCategory(cat, plan.industry, bkMoodWord(plan.personality), 2, function (best) {
+        /* v17.7.25: the swap must fetch a photo no other zone is using —
+         * exclude every URL currently assigned in the cache. */
+        var exclude = {};
+        for (var c in bkMockupCache) {
+          if (bkMockupCache.hasOwnProperty(c) && bkMockupCache[c].url) exclude[bkMockupCache[c].url] = true;
+        }
+        bkFetchCategory(cat, plan.industry, bkMoodWord(plan.personality), 2, function (best, repeated) {
           if (!best) { if (st) st.textContent = "No alternate photo found for " + cat + "."; return; }
           bkDownloadImage(best.url, cat + "_alt" + Date.now(), function (localPath) {
             if (localPath) {
+              /* v17.7.25: the swapped-out URL stays in bkUsedUrls too —
+               * a photo used once this session is never picked again. */
+              bkUsedUrls[best.url] = true;
               bkMockupCache[cat] = { url: best.url, localPath: localPath, title: best.title || cat, license: best.license || "", creator: best.creator || "", width: best.width || 0, height: best.height || 0, tone: "busy" };
               bkSampleFileTone(localPath, function (tone) {
                 bkMockupCache[cat].tone = tone;
                 bkRenderThumbs();
-                if (st) st.textContent = "Swapped " + cat + " mockup ✓";
+                if (st) st.textContent = "Swapped " + cat + " mockup ✓" + (repeated ? " (no fresh alternate — photo repeated)" : "");
               });
             } else if (st) st.textContent = "Download failed for " + cat + ".";
           });
-        });
+        }, exclude);
       });
     }
   }
@@ -352,18 +445,125 @@
       if (cats.length === 0) { setStatus("Tick at least one mockup category first."); return; }
       bkMockupBusy = true;
       btn.disabled = true;
-      setStatus("Fetching online mockups from Openverse… (0/" + cats.length + ")");
+      setStatus("Mockup anchi… (0/" + cats.length + ")");
       bkFetchAll(cats, plan.industry, bkMoodWord(plan.personality), function (cat, n, total) {
-        setStatus("Fetching online mockups… (" + n + "/" + total + ") — " + (BK_MOCKUPS[cat] ? BK_MOCKUPS[cat].label : cat));
+        setStatus("Mockup anchi… (" + n + "/" + total + ") — " + (BK_MOCKUPS[cat] ? BK_MOCKUPS[cat].label : cat));
         bkRenderThumbs();
-      }, function () {
+      }, function (repeats) {
         bkMockupBusy = false;
         btn.disabled = false;
         bkRenderThumbs();
         var n = Object.keys(bkMockupCache).length;
-        setStatus(n > 0 ? ("Ready: " + n + " real mockup photo(s) downloaded ✓ — Generate will place them in the artwork. Click a thumbnail to swap it.") : "Could not fetch mockups (offline?). Generate will use the vector-only sheets.");
+        var repNote = (repeats && repeats.length) ? (" (photo repeat hoyeche: " + repeats.join(", ") + " — ar fresh photo chilo na)") : "";
+        setStatus(n > 0 ? ("Ready: " + n + " distinct real mockup photo(s) downloaded ✓ — Generate will place them in the artwork. Click a thumbnail to swap it." + repNote) : "Could not fetch mockups (offline?). Generate will use the vector-only sheets.");
       });
     });
+  }
+
+  /* --- Send to Muse package (v17.7.25, panel side only) ---
+   * The panel is the SENDER, Muse is the BUILDER of the final guideline:
+   * the user presses Send to Muse in the panel, the brand package comes
+   * to Muse here, and Muse takes the BEST realistic online mockups and
+   * builds the full brand guideline. The panel's own Generate is only the
+   * instant local preview/draft — its fetch is fast, not "the best".
+   * The package is built LOCALLY in the OS temp folder (works offline);
+   * the transmit call is NOT implemented here — the server endpoint is
+   * the parent agent's job afterwards (see upload-spec.json). */
+  function bkPanelVersion() {
+    /* PANEL_VERSION lives inside an IIFE in update-check.js and is not
+     * global — read the version chip the panel itself renders, with a
+     * fallback that matches the current release. */
+    try {
+      var el = document.querySelector ? document.querySelector(".brand-ver") : null;
+      var t = el ? String(el.textContent || "").replace(/^v/i, "").trim() : "";
+      if (/^\d+\.\d+\.\d+$/.test(t)) return t;
+    } catch (e) {}
+    return "17.7.25";
+  }
+  function bkLicenseKeyHead() {
+    try {
+      var raw = localStorage.getItem("design360n_workstation_license");
+      var rec = raw ? JSON.parse(raw) : null;
+      var k = rec && rec.key ? String(rec.key) : "";
+      return k ? k.substring(0, 4) : "no-key";
+    } catch (e) { return "no-key"; }
+  }
+  function bkStampNow() {
+    var d = new Date();
+    function p2(n) { return (n < 10 ? "0" : "") + n; }
+    return "" + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + "-" + p2(d.getHours()) + p2(d.getMinutes());
+  }
+  function bkSafeName(s) {
+    return (String(s || "brand").replace(/[^a-z0-9-_]+/gi, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "") || "brand");
+  }
+  function bkBuildMusePackage(plan, pdfPath, done) {
+    /* Assembles the handoff package under
+     * <temp>/Design360n_BrandKit_Mockups/outbox/<brand>-<YYYYMMDD-HHmm>/
+     * with: guideline PDF (panel draft), plan.json (the exact plan sent
+     * to the JSX), the logo file actually used, manifest.txt (license key
+     * FIRST 4 chars only), upload-spec.json (server handoff spec) and
+     * muse-brief.txt (plain-words brief for Muse). done({ok, dir, files,
+     * pdf, plan, logo}) — ok:false when the temp folder is unavailable. */
+    var n = bkNode(), dir = bkTempDir();
+    if (!n || !dir) { done({ ok: false, reason: "no-temp" }); return; }
+    var outDir = n.path.join(dir, "outbox");
+    var out = n.path.join(outDir, bkSafeName(plan.brandName) + "-" + bkStampNow());
+    try {
+      if (!n.fs.existsSync(outDir)) n.fs.mkdirSync(outDir);
+      n.fs.mkdirSync(out);
+    } catch (e) { done({ ok: false, reason: "no-outbox" }); return; }
+    var files = [];
+    function wfile(name, content) {
+      try { n.fs.writeFileSync(n.path.join(out, name), content); files.push(name); return true; } catch (e) { return false; }
+    }
+    function cfile(src, name) {
+      if (!src) return false;
+      try {
+        var buf = n.fs.readFileSync(src);
+        n.fs.writeFileSync(n.path.join(out, name), buf);
+        files.push(name); return true;
+      } catch (e) { return false; }
+    }
+    var safeBrand = bkSafeName(plan.brandName);
+    var pdfName = safeBrand + "_Brand_Guideline.pdf";
+    var pdfOk = pdfPath ? cfile(pdfPath, pdfName) : false;
+    var planOk = wfile("plan.json", JSON.stringify(plan, null, 2));
+    var logoSrc = plan.logoFile || bkLastLogoPath || bkLogoFilePath || "";
+    var logoExt = /\.png$/i.test(logoSrc) ? ".png" : ".jpg";
+    var logoOk = logoSrc ? cfile(logoSrc, "logo" + logoExt) : false;
+    var zones = Object.keys(plan.mockups || {});
+    var lines = zones.map(function (cat) {
+      var m = bkMockupCache[cat];
+      if (!m) return cat + " | (no photo — vector-only)";
+      return cat + " | " + (m.url || "") + " | " + (m.license || "") + " | by " + (m.creator || "unknown");
+    });
+    var manifest = [
+      "Brand: " + plan.brandName,
+      "Template: " + plan.templateStyle,
+      "Date/Time: " + new Date().toString(),
+      "Panel version: " + bkPanelVersion(),
+      "License key (first 4 chars): " + bkLicenseKeyHead(),
+      "Mockup mode: " + (plan.mockupMode || "auto"),
+      "Logo variant: " + (plan.logoVariant || "auto"),
+      "Logo file used: " + (logoOk ? "logo" + logoExt : "generated text logo (no file)"),
+      "Guideline PDF: " + (pdfOk ? pdfName + " (panel draft — reference only)" : "not exported"),
+      "",
+      "Mockup photos the panel used (zone | url | license | creator):"
+    ].concat(lines.length ? lines : ["(none — vector-only sheets)"]).join("\n");
+    wfile("manifest.txt", manifest);
+    var spec = {
+      endpoint: "https://script.google.com/macros/s/AKfycbx5HH2LS6FDoHpnKoIM9tDYfNqQ1CxXCe2iFO1MColMUSpacgwnzdO95mwoyLHFovtvvw/exec",
+      action: "brandkit_upload",
+      method: "POST",
+      fields: { key: "<license key from the gate>", brand: "<name>", files: { pdf: "base64", plan: "json", logo: "base64" } },
+      notes: "Apps Script doPost must save into Drive folder 'Design360n BrandKit Inbox' and return {ok:true,fileId}"
+    };
+    wfile("upload-spec.json", JSON.stringify(spec, null, 2));
+    var brief = "Brand: " + plan.brandName + ". Industry: " + (plan.industry || "(not given)") + ". Personality: " + (plan.personality || "") + ". " +
+      "Build the full brand guideline with the BEST realistic online mockups (distinct photo per zone, logo stamped on every mockup per the guideline rules). " +
+      "Panel draft PDF included for reference only — Muse's version is the final.";
+    wfile("muse-brief.txt", brief);
+    done({ ok: true, dir: out, files: files, pdf: pdfOk, plan: planOk, logo: logoOk });
   }
 
   function brandPreviewSVG(opts) {
@@ -529,30 +729,54 @@
           if (elStat) elStat.textContent = "Preview Mode: Open inside Adobe Illustrator to generate Brand Kit.";
           return;
         }
+        /* One-click auto Generate (v17.7.25): logo → brand-wise mockups →
+         * kit in Illustrator → guideline PDF exported automatically.
+         * The panel result is the instant LOCAL preview/draft; the final
+         * guideline with the best online mockups is Muse's step after
+         * "Send to Muse" — the panel never promises it picks "the best". */
         function doGenerate(finalPlan) {
-          if (elStat) { elStat.textContent = "Building multi-artboard Brand Identity Kit in Illustrator…"; elStat.style.color = "#3bcdca"; }
+          if (elStat) { elStat.textContent = "Kit banacchi…"; elStat.style.color = "#3bcdca"; }
           csInterface.evalScript("dmGenerateBrandKitAI('" + escJSX(finalPlan) + "')", function (res) {
-            if (elStat) {
-              elStat.textContent = (res && res.indexOf("OK:") === 0) ? res.substring(3) : (res || "Brand Identity Kit created!");
-              elStat.style.color = (res && res.indexOf("ERROR:") === 0) ? "#f87171" : "#3bcdca";
+            var ok = res && res.indexOf("OK:") === 0;
+            if (!ok) {
+              if (elStat) {
+                elStat.textContent = (res && res.indexOf("ERROR:") === 0) ? res.substring(6) : (res || "Brand Identity Kit created!");
+                elStat.style.color = "#f87171";
+              }
+              return;
             }
+            bkLastPlan = finalPlan;
+            bkLastLogoPath = finalPlan.logoFile || "";
+            if (elStat) { elStat.textContent = "PDF export hocche…"; elStat.style.color = "#3bcdca"; }
+            csInterface.evalScript("dmExportBrandGuidelinePDFAuto()", function (resPdf) {
+              if (resPdf && resPdf.indexOf("OK:") === 0) {
+                bkLastPdfPath = resPdf.substring(3);
+                if (elStat) { elStat.textContent = "Kit + PDF ready ✓ — Muse er kache pathanor jonno ready ✓ (Send to Muse chapen — Muse online theke best mockup niye full brand guideline banabe)."; elStat.style.color = "#3bcdca"; }
+              } else {
+                bkLastPdfPath = "";
+                if (elStat) { elStat.textContent = res.substring(3) + " — PDF export hoyni, tobe kit Illustrator e toiri ache. Send to Muse te PDF thakbe na."; elStat.style.color = "#f59e0b"; }
+              }
+            });
           });
         }
-        /* Step 2 — fetch any mockup photos still missing, then generate. */
+        /* Step 2 — fetch ALL enabled mockup photos FRESH for this
+         * generation (never reuse the cache — that was the repeat bug),
+         * then generate. */
         function afterLogo(finalPlan) {
-          var need = (finalPlan.mockupMode !== "off") ? bkEnabledCats(finalPlan).filter(function (c) { return !bkMockupCache[c]; }) : [];
+          var need = (finalPlan.mockupMode !== "off") ? bkEnabledCats(finalPlan) : [];
           if (need.length === 0) { doGenerate(finalPlan); return; }
-          if (bkMockupBusy) { if (elStat) elStat.textContent = "Still fetching mockups — please wait a few seconds, then Generate again."; return; }
+          if (bkMockupBusy) { if (elStat) elStat.textContent = "Mockup anchi — ektu wait koren, tarpor abar Generate chapen."; return; }
           bkMockupBusy = true;
-          if (elStat) { elStat.textContent = "Fetching online mockups for your brand…"; elStat.style.color = "#3bcdca"; }
+          if (elStat) { elStat.textContent = "Mockup anchi… (brand-wise online theke)"; elStat.style.color = "#3bcdca"; }
           bkFetchAll(need, finalPlan.industry, bkMoodWord(finalPlan.personality), function (cat, n, total) {
-            if (elStat) elStat.textContent = "Fetching online mockups… (" + n + "/" + total + ")";
+            if (elStat) elStat.textContent = "Mockup anchi… (" + n + "/" + total + ")";
             bkRenderThumbs();
-          }, function () {
+          }, function (repeats) {
             bkMockupBusy = false;
             bkRenderThumbs();
             finalPlan.mockups = bkMockupPaths();
             finalPlan.mockupTone = bkMockupTones();
+            if (repeats && repeats.length && elStat) elStat.textContent = "Note: " + repeats.join(", ") + " er jonno fresh photo chilo na — photo repeat hoyeche.";
             doGenerate(finalPlan);
           });
         }
@@ -562,7 +786,7 @@
          * the user — never generate with a wrong logo. */
         function resolveLogoFile(cb) {
           if (plan.logoSource === "illustrator") {
-            if (elStat) { elStat.textContent = "Exporting your selected logo from Illustrator…"; elStat.style.color = "#3bcdca"; }
+            if (elStat) { elStat.textContent = "Logo nicchi… (Illustrator theke)"; elStat.style.color = "#3bcdca"; }
             csInterface.evalScript("dmExportSelectedLogo()", function (res) {
               if (res && res.indexOf("OK:") === 0) {
                 plan.logoFile = res.substring(3);
@@ -616,6 +840,33 @@
             elStat.textContent = (res && res.indexOf("OK:") === 0) ? res.substring(3) : (res || "Brand Guideline PDF exported!");
             elStat.style.color = (res && res.indexOf("ERROR:") === 0) ? "#f87171" : "#3bcdca";
           }
+        });
+      });
+    }
+
+    /* --- Send to Muse (v17.7.25): the MAIN deliverable path. The panel
+     * sends the brand package; Muse picks the BEST realistic online
+     * mockups and builds the final guideline. The button prepares the
+     * package locally — the transmit call is the parent agent's server
+     * job afterwards (see upload-spec.json in the package). */
+    var btnSend = document.getElementById("btnBkSendToMuse");
+    var elSendStatus = document.getElementById("bkSendStatus");
+    if (btnSend) {
+      btnSend.addEventListener("click", function () {
+        if (!bkLastPlan || !bkLastPdfPath) {
+          if (elSendStatus) elSendStatus.textContent = "Age Generate chapen — tarpor Send to Muse chaple package ready hobe.";
+          if (elStat) elStat.textContent = "Age Generate chapen — tarpor Send to Muse chaple package ready hobe.";
+          return;
+        }
+        if (elSendStatus) elSendStatus.textContent = "Package banacchi…";
+        bkBuildMusePackage(bkLastPlan, bkLastPdfPath, function (res) {
+          if (!res.ok) {
+            if (elSendStatus) elSendStatus.textContent = "Package banano jayni (temp folder pacche na).";
+            return;
+          }
+          var msg = "Package ready ✓ — " + res.dir + " — Muse ke bollei oita niye kaj korbe.";
+          if (elSendStatus) elSendStatus.textContent = msg;
+          if (elStat) { elStat.textContent = "Send to Muse package ready ✓ — Muse online theke best mockup niye full brand guideline banabe. Folder: " + res.dir; elStat.style.color = "#3bcdca"; }
         });
       });
     }
@@ -700,5 +951,5 @@
     else initBrandKitUI();
   }
 
-  global.BrandKitStudio = { brandPreviewSVG: brandPreviewSVG, rgbToCmykStr: rgbToCmykStr, mockupCatalog: BK_MOCKUPS, templateZones: BK_TEMPLATE_ZONES, suggestTemplate: bkSuggestTemplate, moodWord: bkMoodWord, toneFromPixels: bkToneFromPixels };
+  global.BrandKitStudio = { brandPreviewSVG: brandPreviewSVG, rgbToCmykStr: rgbToCmykStr, mockupCatalog: BK_MOCKUPS, templateZones: BK_TEMPLATE_ZONES, suggestTemplate: bkSuggestTemplate, moodWord: bkMoodWord, toneFromPixels: bkToneFromPixels, _test: { pickBest: bkPickBest, fetchCategory: bkFetchCategory, fetchAll: bkFetchAll, cache: function () { return bkMockupCache; }, usedUrls: function () { return bkUsedUrls; }, downloadImage: bkDownloadImage, buildPackage: bkBuildMusePackage, hashStr: bkHashStr, realisticScore: bkRealisticScore, panelVersion: bkPanelVersion, licenseKeyHead: bkLicenseKeyHead } };
 })(typeof window !== "undefined" ? window : globalThis);

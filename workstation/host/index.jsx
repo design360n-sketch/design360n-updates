@@ -3136,6 +3136,33 @@ function dmExportBrandGuidelinePDF() {
     }
 }
 
+/* One-click auto PDF export (v17.7.25) — same as dmExportBrandGuidelinePDF
+ * but NO save dialog: saves silently into the panel temp folder with a
+ * timestamped name and returns "OK:<full path>" so the panel can attach
+ * it to the Send-to-Muse package. The manual button keeps the dialog
+ * version above. Works offline (local file write only). */
+function dmExportBrandGuidelinePDFAuto() {
+    try {
+        if (app.documents.length === 0) return "ERROR:NO_DOC";
+        var doc = app.activeDocument;
+        var tmpDir = new Folder(Folder.temp + "/Design360n_BrandKit_Mockups");
+        if (!tmpDir.exists) tmpDir.create();
+        var d = new Date();
+        function pad2(n) { return (n < 10 ? "0" : "") + n; }
+        var stamp = "" + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + "-" + pad2(d.getHours()) + pad2(d.getMinutes());
+        var base = String(doc.name || "Brand_Kit").replace(/\.ai$/i, "").replace(/[\\\/:*?"<>|]+/g, "_");
+        var outFile = new File(tmpDir.fsName + "/" + base + "_Brand_Guideline_" + stamp + ".pdf");
+        var opts = new PDFSaveOptions();
+        opts.preserveEditability = true;
+        opts.viewAfterSaving = false;
+        doc.saveAs(outFile, opts);
+        if (!outFile.exists) return "ERROR:SAVE_FAILED";
+        return "OK:" + outFile.fsName;
+    } catch (err) {
+        return "ERROR:" + err.message;
+    }
+}
+
 function dmExportSelectedLogo() {
     /* Exports the CURRENT SELECTION (the logo the user is working on) as a
      * transparent PNG into the panel temp folder, so Brand Kit Pro can stamp
@@ -3251,6 +3278,37 @@ function dmGenerateBrandKitAI(payloadJSON) {
         var lastMkBounds = null;
         var stampOK = 0, stampSkip = 0, stampSkipCats = [];
         var stampSeed = null, stampCols = null, stampFont = null;
+        /* --- Selectable logos (v17.7.25) ---
+         * Stamped logos and logo-section logos MUST be directly selectable
+         * in Illustrator with one click. Everything drawn by this engine
+         * lives inside one big group per sheet/board ("Brand_Sheet_*"), so
+         * a logo nested in there can only be reached via isolation mode —
+         * one click selects the whole sheet instead. Fix: every logo group
+         * is created as a DIRECT CHILD of the document layer (stampLayer),
+         * named ("Logo — Signage", "Logo — Primary Lockup", …), unlocked
+         * and visible, sitting ABOVE the photo/card art (it is added after
+         * the sheet group exists, so it stacks on top). The photo, tint
+         * and cards stay inside the sheet group — only logos move out.
+         * bkLogoName() keeps names unique ("Brand Logo", "Brand Logo 2"). */
+        var stampLayer = null;
+        var bkLogoNameSeq = {};
+        var BK_CAT_LABEL = { stationery: "Stationery", signage: "Signage", packaging: "Packaging", bag: "Bag", apparel: "Apparel", cup: "Cup", social: "Social", laptop: "Laptop", phone: "Phone", billboard: "Billboard" };
+        function bkLogoName(base) {
+            bkLogoNameSeq[base] = (bkLogoNameSeq[base] || 0) + 1;
+            return bkLogoNameSeq[base] > 1 ? base + " " + bkLogoNameSeq[base] : base;
+        }
+        /* --- SPACING SYSTEM (v17.7.25 — one grid for the whole kit) ---
+         * Sheets (1200x1950): base unit U = 12. Outer margin M = 36 (3U).
+         * Gutter G = 24 (2U) between cards, columns and rows. Inner card
+         * padding P = 24. Micro gap m = 12 (label-to-content). Content
+         * frame: x 36..1164, top H-36, bottom H-1914.
+         * Book (1280x720): margin M = 48 (4U), gutter G = 24, padding
+         * P = 24, micro m = 12. Content frame: top y0-96, bottom y0-672
+         * (height 576). Full-bleed bands (hero/strip/type bar/app grid)
+         * are edge-to-edge BY DESIGN (gap 0) — they are bands, not cards.
+         * Typographic leading inside a text block is content-dependent
+         * and stays as designed; the system governs margins, gutters,
+         * row gaps, frames and zone insets. */
         function dmPlaceMockup(grp, cat, x, yTop, w, h, tintC) {
             try {
                 lastMkBounds = null;
@@ -3279,14 +3337,18 @@ function dmGenerateBrandKitAI(payloadJSON) {
             } catch (ePM) { return false; }
         }
         function dmStampLogoOnMockup(grp, cat) {
+            /* v17.7.25: the stamp group is created as a direct child of the
+             * layer (stampLayer), NOT inside the photo's sheet group — so
+             * one click in Illustrator selects ONLY the logo. The photo,
+             * tint and cards stay inside grp; the stamp sits above them. */
             try {
                 if (!lastMkBounds) return false;
                 var pb = lastMkBounds;
                 var pw = Math.max(1, pb[2] - pb[0]), ph = Math.max(1, pb[1] - pb[3]);
                 var frac = BK_STAMP_FRAC[cat] || 0.40;
                 var tone = String(mkTone[cat] || "busy");
-                var st = grp.groupItems.add();
-                st.name = "Logo_On_Mockup_" + cat;
+                var st = (stampLayer ? stampLayer.groupItems.add() : grp.groupItems.add());
+                st.name = bkLogoName("Logo — " + (BK_CAT_LABEL[cat] || cat));
                 var isRaster = false, isSeed = false;
                 if (logoFile) {
                     try {
@@ -3380,6 +3442,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
             docB.artboards[0].name = "Brand_Presentation_Sheet";
 
             var lyrB = docB.layers[0]; lyrB.name = "Brand_Sheet";
+            stampLayer = lyrB; /* v17.7.25: logos go to the layer, not the sheet group */
             var seedB = null;
             if (srcSel.length > 0) {
                 try {
@@ -3418,9 +3481,12 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 tf.position = [ctr ? (x - tf.width / 2) : x, yTop];
                 return tf;
             }
-            function lg(cx, cy, mw, mh) {
+            function lg(cx, cy, mw, mh, label) {
+                /* v17.7.25: logos are direct children of the layer
+                 * (stampLayer), named, so one click selects ONLY the logo. */
                 if (seedB && seedB.pageItems.length > 0) {
-                    var du = seedB.duplicate(g, ElementPlacement.PLACEATEND);
+                    var du = seedB.duplicate(stampLayer || g, ElementPlacement.PLACEATEND);
+                    try { du.name = bkLogoName(label || "Brand Logo"); } catch (eNm) {}
                     var gb = du.geometricBounds;
                     var lw = Math.max(1, gb[2] - gb[0]), lh = Math.max(1, gb[1] - gb[3]);
                     var sc = Math.min(mw / lw, mh / lh) * 100;
@@ -3430,9 +3496,16 @@ function dmGenerateBrandKitAI(payloadJSON) {
                     return du;
                 }
                 var sz = Math.min(mw, mh);
-                bx(cx - sz / 2, cy + sz / 2, sz, sz, cP, null, 0, sz * 0.24);
-                tx(bn.substring(0, 2), cx, cy + sz * 0.20, sz * 0.42, cDk, fT, true);
-                return null;
+                var lgGrp = (stampLayer || g).groupItems.add();
+                lgGrp.name = bkLogoName(label || "Brand Logo");
+                var tile = lgGrp.pathItems.roundedRectangle(cy + sz / 2, cx - sz / 2, sz, sz, sz * 0.24, sz * 0.24);
+                tile.filled = true; tile.fillColor = cP; tile.stroked = false;
+                var ltf = lgGrp.textFrames.add(); ltf.contents = bn.substring(0, 2);
+                var lca = ltf.textRange.characterAttributes; lca.size = Math.max(6, sz * 0.42); lca.fillColor = cDk;
+                try { lca.textFont = fT; } catch (eLF) {}
+                try { ltf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (eLJ) {}
+                ltf.position = [cx - ltf.width / 2, cy + sz * 0.20];
+                return lgGrp;
             }
 
             if (tpl === "bento_dark") {
@@ -3440,54 +3513,54 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 bx(0, H, W, H, cDk, null, 0, 0);
                 // 1. Top Full-Width Hero Lockup Card (Primary + Secondary side-by-side)
                 bx(36, H - 36, 1128, 380, cCream, null, 0, 28);
-                lg(330, H - 220, 340, 230);
-                lg(860, H - 220, 360, 220);
+                lg(330, H - 220, 340, 230, "Logo — Primary Lockup");
+                lg(860, H - 220, 360, 220, "Logo — Secondary Lockup");
                 tx("PRIMARY & SECONDARY LOGO LOCKUPS", 600, H - 386, 11, cMuted, fT, true);
 
                 // 2. Row 2: 2 Square Brand Badges (Left) + Geometric Construction Grid Card (Right)
-                bx(36, H - 440, 270, 270, cP, null, 0, 26); lg(171, H - 575, 165, 130);
-                bx(326, H - 440, 270, 270, cS, null, 0, 26); lg(461, H - 575, 165, 130);
+                bx(36, H - 440, 268, 270, cP, null, 0, 26); lg(170, H - 575, 165, 130);
+                bx(328, H - 440, 268, 270, cS, null, 0, 26); lg(462, H - 575, 165, 130);
                 // Right: Construction Grid Card (Vigio style dashed guidelines!)
-                bx(616, H - 440, 548, 270, cP, null, 0, 26);
+                bx(620, H - 440, 544, 270, cP, null, 0, 26);
                 for (var gx = 1; gx < 6; gx++) {
                     var vl = g.pathItems.add(); vl.filled = false; vl.stroked = true; vl.strokeColor = cWhite; vl.strokeWidth = 0.8;
                     try { vl.strokeDashes = [4, 4]; } catch (e) {}
-                    vl.setEntirePath([[616 + gx * 91, H - 440], [616 + gx * 91, H - 710]]);
+                    vl.setEntirePath([[620 + gx * 91, H - 440], [620 + gx * 91, H - 710]]);
                 }
                 for (var gy = 1; gy < 4; gy++) {
                     var hl = g.pathItems.add(); hl.filled = false; hl.stroked = true; hl.strokeColor = cWhite; hl.strokeWidth = 0.8;
                     try { hl.strokeDashes = [4, 4]; } catch (e) {}
-                    hl.setEntirePath([[616, H - 440 - gy * 67], [1164, H - 440 - gy * 67]]);
+                    hl.setEntirePath([[620, H - 440 - gy * 67], [1164, H - 440 - gy * 67]]);
                 }
-                lg(890, H - 575, 280, 170);
+                lg(892, H - 575, 280, 170);
 
                 // 3. Row 3: Typography Specimen Card (Left) + App Icon Badge Card (Right)
-                bx(36, H - 734, 680, 250, cCream, null, 0, 26);
+                bx(36, H - 734, 692, 250, cCream, null, 0, 26);
                 tx("Aa", 80, H - 772, 118, cDk, fT, false);
                 tx((p.titleFont || "Poppins") + "\n" + (p.personality ? ("Bold & SemiBold • " + String(p.personality).replace(/,\s*/g, " • ")) : "Bold & SemiBold"), 285, H - 796, 17, cDk, fT, false);
                 tx("ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz  0123456789", 80, H - 918, 13, cDk, fB, false);
 
-                bx(736, H - 734, 428, 250, cWhite, null, 0, 26);
-                bx(865, H - 776, 170, 170, cP, null, 0, 38);
-                lg(950, H - 861, 105, 85);
+                bx(752, H - 734, 412, 250, cWhite, null, 0, 26);
+                bx(881, H - 776, 170, 170, cP, null, 0, 38);
+                lg(966, H - 861, 105, 85);
                 // Notification red badge
-                var nb = g.pathItems.ellipse(H - 760, 1005, 42, 42); nb.filled = true; nb.fillColor = cA; nb.stroked = false;
-                tx("9", 1026, H - 771, 18, cWhite, fT, true);
+                var nb = g.pathItems.ellipse(H - 760, 1021, 42, 42); nb.filled = true; nb.fillColor = cA; nb.stroked = false;
+                tx("9", 1042, H - 771, 18, cWhite, fT, true);
 
                 // 4. Row 4: 4 Pill HEX Color Swatches (Crave & Co. style!)
                 var pills = [[cP, p.primary, cDk], [cS, p.secondary, cWhite], [cCream, "#F7F2E9", cDk], [cA, p.accent, cDk]];
                 for (var pi = 0; pi < 4; pi++) {
-                    var px2 = 36 + pi * 288;
+                    var px2 = 36 + pi * 282;
                     bx(px2, H - 1008, 268, 92, pills[pi][0], null, 0, 46);
                     tx(String(pills[pi][1] || "").toUpperCase(), px2 + 134, H - 1042, 18, pills[pi][2], fT, true);
                 }
 
                 // 5. Row 5: Wide Hero Wordmark Banner + Brand Story Card
-                bx(36, H - 1124, 420, 330, cDk, cP, 1.5, 26);
+                bx(36, H - 1124, 432, 330, cDk, cP, 1.5, 26);
                 tx("BRAND STORY", 68, H - 1160, 13, cP, fT, false);
                 tx(bn + "\n\n" + (p.tagline || "") + "\n\n" + (p.story || ""), 68, H - 1200, 15, cWhite, fB, false);
-                bx(476, H - 1124, 688, 330, cP, null, 0, 26);
-                lg(820, H - 1280, 360, 210);
+                bx(492, H - 1124, 672, 330, cP, null, 0, 26);
+                lg(828, H - 1280, 360, 210);
 
                 // 6. Row 6: Packaging Cup/Box Card + Die-Cut Sticker Card
                 bx(36, H - 1478, 620, 436, cCream, null, 0, 26);
@@ -3496,90 +3569,91 @@ function dmGenerateBrandKitAI(payloadJSON) {
                     bx(110, H - 1560, 175, 280, cS, null, 0, 18); lg(197, H - 1690, 110, 85);
                     bx(330, H - 1610, 240, 230, cDk, null, 0, 16); lg(450, H - 1720, 130, 95);
                 }
-                bx(676, H - 1478, 488, 436, cS, null, 0, 26);
-                if (dmPlaceMockup(g, "cup", 696, H - 1500, 448, 330, cP)) { dmStampLogoOnMockup(g, "cup"); } else {
-                    bx(760, H - 1565, 320, 240, cWhite, null, 0, 56);
-                    lg(920, H - 1685, 230, 150);
+                bx(680, H - 1478, 484, 436, cS, null, 0, 26);
+                if (dmPlaceMockup(g, "cup", 704, H - 1500, 436, 330, cP)) { dmStampLogoOnMockup(g, "cup"); } else {
+                    bx(768, H - 1565, 320, 240, cWhite, null, 0, 56);
+                    lg(922, H - 1685, 230, 150);
                 }
-                tx("BRANDED MERCHANDISE", 920, H - 1865, 13, cWhite, fT, true);
+                tx("BRANDED MERCHANDISE", 922, H - 1865, 13, cWhite, fT, true);
             } else if (tpl === "swiss_corp") {
                 // Style 2: Inova Brandscape Swiss Minimal Corporate Sheet (Clean White Grid)
+                // Spacing system v17.7.25: M=36, G=24 — rows at H-36 / H-480 / H-924 / H-1368, footer H-1752.
                 bx(0, H, W, H, cWhite, null, 0, 0);
                 // Top 3-Col Row
-                bx(28, H - 28, 370, 420, cWhite, dmHexToRGBColor("#e2e8f0"), 1, 0);
-                tx("STRATEGY\nBRAND IDENTITY\nVISUAL DESIGN", 54, H - 56, 11, cMuted, fT, false);
-                lg(213, H - 235, 250, 140);
-                tx((p.tagline || (bn + " — BRAND IDENTITY")).toUpperCase(), 213, H - 385, 11, cDk, fT, true);
+                bx(36, H - 36, 375, 420, cWhite, dmHexToRGBColor("#e2e8f0"), 1, 0);
+                tx("STRATEGY\nBRAND IDENTITY\nVISUAL DESIGN", 60, H - 64, 11, cMuted, fT, false);
+                lg(223, H - 243, 250, 140);
+                tx((p.tagline || (bn + " — BRAND IDENTITY")).toUpperCase(), 223, H - 393, 11, cDk, fT, true);
 
-                bx(414, H - 28, 410, 420, cLt, null, 0, 0);
+                bx(435, H - 36, 375, 420, cLt, null, 0, 0);
                 // Angled Business Card Front & Back
-                bx(460, H - 70, 310, 175, cP, null, 0, 4); lg(615, H - 155, 150, 85);
-                bx(460, H - 260, 310, 175, cWhite, cMuted, 0.5, 4);
-                tx(bn + "\n" + (p.phone || "") + "\n" + (p.email || "") + "\n" + (p.website || ""), 486, H - 295, 11, cDk, fB, false);
+                bx(481, H - 66, 283, 175, cP, null, 0, 4); lg(622, H - 153, 150, 85);
+                bx(481, H - 265, 283, 175, cWhite, cMuted, 0.5, 4);
+                tx(bn + "\n" + (p.phone || "") + "\n" + (p.email || "") + "\n" + (p.website || ""), 505, H - 300, 11, cDk, fB, false);
 
-                bx(840, H - 28, 332, 420, cP, null, 0, 0);
-                tx((p.tagline || bn) + "\n" + String(p.values || "").replace(/\s*•\s*/g, "\n"), 884, H - 155, 16, cWhite, fT, false);
+                bx(834, H - 36, 330, 420, cP, null, 0, 0);
+                tx((p.tagline || bn) + "\n" + String(p.values || "").replace(/\s*•\s*/g, "\n"), 858, H - 163, 16, cWhite, fT, false);
 
                 // Mid 3-Col: Typeface Specimen | App Icon | 4 Vertical Full-Bleed Color Columns
-                bx(28, H - 468, 370, 340, cLt, null, 0, 0);
-                tx("PRIMARY TYPEFACE — " + (p.titleFont || "Montserrat").toUpperCase(), 54, H - 498, 10, cMuted, fT, false);
-                tx("A B C D E F G H I J K L M N\nO P Q R S T U V W X Y Z\n0 1 2 3 4 5 6 7 8 9", 54, H - 545, 14, cDk, fT, false);
-                tx(String(p.personality || "").replace(/,\s*/g, " • ").toUpperCase() || (p.titleFont || "Montserrat").toUpperCase(), 54, H - 720, 11, cP, fT, false);
+                bx(36, H - 480, 375, 420, cLt, null, 0, 0);
+                tx("PRIMARY TYPEFACE — " + (p.titleFont || "Montserrat").toUpperCase(), 60, H - 510, 10, cMuted, fT, false);
+                tx("A B C D E F G H I J K L M N\nO P Q R S T U V W X Y Z\n0 1 2 3 4 5 6 7 8 9", 60, H - 557, 14, cDk, fT, false);
+                tx(String(p.personality || "").replace(/,\s*/g, " • ").toUpperCase() || (p.titleFont || "Montserrat").toUpperCase(), 60, H - 848, 11, cP, fT, false);
 
-                bx(414, H - 468, 320, 340, cLt, null, 0, 0);
-                bx(504, H - 535, 140, 140, cP, null, 0, 32); lg(574, H - 605, 86, 70);
-                tx(bn, 574, H - 705, 16, cDk, fT, true);
+                bx(435, H - 480, 320, 420, cLt, null, 0, 0);
+                bx(521, H - 597, 140, 140, cP, null, 0, 32); lg(591, H - 667, 86, 70);
+                tx(bn, 591, H - 767, 16, cDk, fT, true);
 
                 // 4 Vertical Color Columns (Inova signature!)
                 var vCols = [[cP, "PRIMARY", p.primary, cWhite], [cS, "SECONDARY", p.secondary, cWhite], [cLt, "LIGHT", String(p.light || "#F8FAFC").toUpperCase(), cDk], [cDk, "DARK", p.dark, cWhite]];
                 for (var vc = 0; vc < 4; vc++) {
-                    var vx2 = 750 + vc * 106;
-                    bx(vx2, H - 468, 104, 340, vCols[vc][0], null, 0, 0);
-                    tx(vCols[vc][1] + "\n" + String(vCols[vc][2]).toUpperCase(), vx2 + 12, H - 755, 9, vCols[vc][3], fT, false);
+                    var vx2 = 779 + vc * 97;
+                    bx(vx2, H - 480, 94, 420, vCols[vc][0], null, 0, 0);
+                    tx(vCols[vc][1] + "\n" + String(vCols[vc][2]).toUpperCase(), vx2 + 12, H - 848, 9, vCols[vc][3], fT, false);
                 }
 
                 // Applications Grid (Signboard, Tote Bag, Bottle, T-Shirt)
-                bx(28, H - 830, 560, 420, cLt, null, 0, 0);
-                tx("STOREFRONT & 3D WALL SIGNAGE", 56, H - 865, 11, cMuted, fT, false);
-                if (dmPlaceMockup(g, "signage", 48, H - 890, 520, 340, cP)) { dmStampLogoOnMockup(g, "signage"); } else { lg(308, H - 1040, 320, 180); }
+                bx(36, H - 924, 552, 420, cLt, null, 0, 0);
+                tx("STOREFRONT & 3D WALL SIGNAGE", 60, H - 960, 11, cMuted, fT, false);
+                if (dmPlaceMockup(g, "signage", 60, H - 985, 504, 348, cP)) { dmStampLogoOnMockup(g, "signage"); } else { lg(312, H - 1148, 320, 180); }
 
-                bx(606, H - 830, 566, 420, cP, null, 0, 0);
-                tx("MERCHANDISE & TOTE BAG", 636, H - 865, 11, cWhite, fT, false);
-                if (dmPlaceMockup(g, "bag", 626, H - 890, 526, 340, cP)) { dmStampLogoOnMockup(g, "bag"); } else { lg(889, H - 1040, 260, 180); }
+                bx(612, H - 924, 552, 420, cP, null, 0, 0);
+                tx("MERCHANDISE & TOTE BAG", 636, H - 960, 11, cWhite, fT, false);
+                if (dmPlaceMockup(g, "bag", 636, H - 985, 504, 348, cP)) { dmStampLogoOnMockup(g, "bag"); } else { lg(888, H - 1148, 260, 180); }
 
-                bx(28, H - 1270, 370, 440, cDk, null, 0, 0);
-                tx("MOBILE APP ICON", 213, H - 1305, 11, cP, fT, true);
-                bx(133, H - 1380, 160, 160, cP, null, 0, 34); lg(213, H - 1460, 95, 80);
+                bx(36, H - 1368, 360, 348, cDk, null, 0, 0);
+                tx("MOBILE APP ICON", 216, H - 1404, 11, cP, fT, true);
+                bx(136, H - 1468, 160, 160, cP, null, 0, 34); lg(216, H - 1548, 95, 80);
 
-                bx(414, H - 1270, 370, 440, cLt, null, 0, 0);
-                tx("BOTTLE PACKAGING", 599, H - 1305, 11, cDk, fT, true);
-                if (dmPlaceMockup(g, "packaging", 434, H - 1330, 330, 360, cP)) { dmStampLogoOnMockup(g, "packaging"); } else { bx(534, H - 1370, 130, 290, cP, null, 0, 26); lg(599, H - 1510, 88, 65); }
+                bx(420, H - 1368, 360, 348, cLt, null, 0, 0);
+                tx("BOTTLE PACKAGING", 600, H - 1404, 11, cDk, fT, true);
+                if (dmPlaceMockup(g, "packaging", 440, H - 1428, 320, 264, cP)) { dmStampLogoOnMockup(g, "packaging"); } else { bx(540, H - 1468, 130, 224, cP, null, 0, 26); lg(605, H - 1580, 88, 65); }
 
-                bx(800, H - 1270, 372, 440, cS, null, 0, 0);
-                tx("STAFF APPAREL TEE", 986, H - 1305, 11, cWhite, fT, true);
-                if (dmPlaceMockup(g, "apparel", 820, H - 1330, 332, 360, cP)) { dmStampLogoOnMockup(g, "apparel"); } else { lg(986, H - 1490, 180, 120); }
+                bx(804, H - 1368, 360, 348, cS, null, 0, 0);
+                tx("STAFF APPAREL TEE", 984, H - 1404, 11, cWhite, fT, true);
+                if (dmPlaceMockup(g, "apparel", 824, H - 1428, 320, 264, cP)) { dmStampLogoOnMockup(g, "apparel"); } else { lg(984, H - 1560, 180, 120); }
 
                 // Clean Editorial Footer — the brand's own words, not a slogan
-                bx(0, H - 1750, W, 200, cWhite, null, 0, 0);
-                tx((p.tagline || bn), 48, H - 1795, 34, cDk, fT, false);
-                tx(String(p.values || "").toUpperCase(), 560, H - 1845, 11, cMuted, fT, true);
-                lg(1010, H - 1845, 180, 90);
+                bx(0, H - 1752, W, 198, cWhite, null, 0, 0);
+                tx((p.tagline || bn), 48, H - 1824, 34, cDk, fT, false);
+                tx(String(p.values || "").toUpperCase(), 560, H - 1854, 11, cMuted, fT, true);
+                lg(1010, H - 1854, 180, 90);
             } else if (tpl === "editorial_warm") {
                 // Style 3: Carlam Warm Editorial Brand Sheet (Cream Hero, 3-Col Strip, 5 Circular Swatches, Full-Width Type Bar)
                 bx(0, H, W, H, cCream, null, 0, 0);
                 tx("PRIMARY LOGO", 600, H - 40, 14, cDk, fT, true);
-                lg(600, H - 235, 520, 280);
+                lg(600, H - 235, 520, 280, "Logo — Primary Lockup");
 
                 // 3-Column Strip: Logotype | Brandmark | Submark
-                bx(0, H - 440, 400, 340, cP, null, 0, 0); tx("LOGOTYPE", 200, H - 472, 13, cWhite, fT, true); lg(200, H - 620, 240, 140);
-                bx(400, H - 440, 400, 340, cCream, null, 0, 0); tx("BRANDMARK", 600, H - 472, 13, cDk, fT, true); lg(600, H - 620, 210, 160);
-                bx(800, H - 440, 400, 340, cDk, null, 0, 0); tx("SUBMARK", 1000, H - 472, 13, cCream, fT, true); lg(1000, H - 620, 210, 160);
+                bx(0, H - 440, 400, 340, cP, null, 0, 0); tx("LOGOTYPE", 200, H - 472, 13, cWhite, fT, true); lg(200, H - 620, 240, 140, "Logo — Logotype");
+                bx(400, H - 440, 400, 340, cCream, null, 0, 0); tx("BRANDMARK", 600, H - 472, 13, cDk, fT, true); lg(600, H - 620, 210, 160, "Logo — Brandmark");
+                bx(800, H - 440, 400, 340, cDk, null, 0, 0); tx("SUBMARK", 1000, H - 472, 13, cCream, fT, true); lg(1000, H - 620, 210, 160, "Logo — Submark");
 
                 // 5 Circular Color Swatches Row
-                tx("COLOR PALETTE", 600, H - 822, 16, cDk, fT, true);
+                tx("COLOR PALETTE", 600, H - 804, 16, cDk, fT, true);
                 var circs = [[cP, "Primary", p.primary], [cCream, "Cream", "#F7F2E9"], [cA, "Accent", p.accent], [cS, "Secondary", p.secondary], [cDk, "Dark Base", p.dark]];
                 for (var cc = 0; cc < 5; cc++) {
-                    var cxC = 140 + cc * 230;
+                    var cxC = 200 + cc * 160;
                     var ell = g.pathItems.ellipse(H - 870, cxC - 68, 136, 136);
                     ell.filled = true; ell.fillColor = circs[cc][0];
                     ell.stroked = (cc === 1); if (cc === 1) { ell.strokeColor = cMuted; ell.strokeWidth = 1; }
@@ -3587,72 +3661,73 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 }
 
                 // Full-Width Primary Typography Bar (Dual Aa)
-                bx(0, H - 1100, W, 250, cP, null, 0, 0);
-                tx("TYPOGRAPHY", 600, H - 1126, 15, cWhite, fT, true);
-                tx("Aa", 110, H - 1170, 96, cWhite, fT, false);
-                tx((p.titleFont || "Montserrat") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz", 285, H - 1192, 13, cWhite, fT, false);
-                tx("Aa", 680, H - 1170, 96, cWhite, fB, false);
-                tx((p.bodyFont || "Arial") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n0123456789 !@#$%", 845, H - 1192, 13, cWhite, fB, false);
+                bx(0, H - 1056, W, 250, cP, null, 0, 0);
+                tx("TYPOGRAPHY", 600, H - 1082, 15, cWhite, fT, true);
+                tx("Aa", 110, H - 1126, 96, cWhite, fT, false);
+                tx((p.titleFont || "Montserrat") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz", 285, H - 1148, 13, cWhite, fT, false);
+                tx("Aa", 680, H - 1126, 96, cWhite, fB, false);
+                tx((p.bodyFont || "Arial") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n0123456789 !@#$%", 845, H - 1148, 13, cWhite, fB, false);
 
                 // Bottom Application Grid
-                bx(36, H - 1390, 540, 520, cWhite, cMuted, 0.6, 14);
-                tx(bn + "\n" + (p.tagline || ""), 70, H - 1430, 26, cDk, fT, false);
-                lg(306, H - 1660, 280, 190);
-                bx(600, H - 1390, 564, 245, cDk, null, 0, 14);
-                tx("SIGNBOARD & STOREFRONT", 882, H - 1420, 12, cA, fT, true);
-                if (dmPlaceMockup(g, "signage", 620, H - 1450, 524, 170, cP)) { dmStampLogoOnMockup(g, "signage"); } else { lg(882, H - 1525, 240, 130); }
-                bx(600, H - 1660, 270, 250, cWhite, cMuted, 0.6, 14);
-                if (dmPlaceMockup(g, "cup", 616, H - 1676, 238, 150, cP)) { dmStampLogoOnMockup(g, "cup"); } else { lg(735, H - 1745, 140, 90); }
-                tx((p.address || "") + "\n" + (p.phone || ""), 735, H - 1835, 10, cDk, fB, true);
-                bx(894, H - 1660, 270, 250, cA, null, 0, 14);
-                if (dmPlaceMockup(g, "apparel", 910, H - 1676, 238, 150, cP)) { dmStampLogoOnMockup(g, "apparel"); } else { lg(1029, H - 1775, 150, 110); }
-                tx("UNIFORM / APRON", 1029, H - 1865, 11, cDk, fT, true);
+                bx(36, H - 1330, 540, 584, cWhite, cMuted, 0.6, 14);
+                tx(bn + "\n" + (p.tagline || ""), 70, H - 1370, 26, cDk, fT, false);
+                lg(306, H - 1650, 280, 190);
+                bx(600, H - 1330, 564, 284, cDk, null, 0, 14);
+                tx("SIGNBOARD & STOREFRONT", 882, H - 1360, 12, cA, fT, true);
+                if (dmPlaceMockup(g, "signage", 624, H - 1390, 516, 200, cP)) { dmStampLogoOnMockup(g, "signage"); } else { lg(882, H - 1490, 240, 130); }
+                bx(600, H - 1638, 270, 276, cWhite, cMuted, 0.6, 14);
+                if (dmPlaceMockup(g, "cup", 624, H - 1662, 222, 190, cP)) { dmStampLogoOnMockup(g, "cup"); } else { lg(735, H - 1757, 140, 90); }
+                tx((p.address || "") + "\n" + (p.phone || ""), 735, H - 1863, 10, cDk, fB, true);
+                bx(894, H - 1638, 270, 276, cA, null, 0, 14);
+                if (dmPlaceMockup(g, "apparel", 918, H - 1662, 222, 190, cP)) { dmStampLogoOnMockup(g, "apparel"); } else { lg(1029, H - 1757, 150, 110); }
+                tx("UNIFORM / APRON", 1029, H - 1886, 11, cDk, fT, true);
             } else {
                 // Style 4: Break Bold Retail & Pattern Sheet (Vibrant Hero + 3 Pill Lockups + Pattern Footer Strip)
+                // Spacing system v17.7.25: M=36, G=24 — hero band 0..520, mid row H-544, app rows H-823 / H-1237, footer H-1641.
                 bx(0, H, W, H, cCream, null, 0, 0);
                 bx(0, H, W, 520, cP, null, 0, 0);
                 lg(600, H - 200, 480, 240);
                 // 3 Pill Logo Variations inside hero
-                bx(140, H - 370, 280, 105, cP, cWhite, 2, 52); lg(280, H - 422, 160, 70);
+                bx(96, H - 370, 280, 105, cP, cWhite, 2, 52); lg(236, H - 422, 160, 70);
                 bx(460, H - 370, 280, 105, cDk, null, 0, 52); lg(600, H - 422, 160, 70);
-                bx(780, H - 370, 280, 105, cCream, null, 0, 52); lg(920, H - 422, 160, 70);
+                bx(824, H - 370, 280, 105, cCream, null, 0, 52); lg(964, H - 422, 160, 70);
 
                 // Mid Row: Color Palette (3 Vertical Rounded Cards) + Typography Aa
-                bx(48, H - 560, 190, 32, cP, null, 0, 10); tx("COLOR PALETTE", 143, H - 569, 12, cWhite, fT, true);
+                bx(36, H - 544, 190, 32, cP, null, 0, 10); tx("COLOR PALETTE", 131, H - 553, 12, cWhite, fT, true);
                 var rSw = [[cP, "PRIMARY", p.primary], [cS, "SECONDARY", p.secondary], [cDk, "DARK TONE", p.dark]];
                 for (var rs = 0; rs < 3; rs++) {
-                    var rxS = 48 + rs * 175;
-                    bx(rxS, H - 610, 155, 185, rSw[rs][0], null, 0, 14);
-                    tx(rSw[rs][1] + "\n" + String(rSw[rs][2]).toUpperCase(), rxS + 77, H - 812, 11, cDk, fT, true);
+                    var rxS = 36 + rs * 175;
+                    bx(rxS, H - 594, 155, 175, rSw[rs][0], null, 0, 14);
+                    tx(rSw[rs][1] + "\n" + String(rSw[rs][2]).toUpperCase(), rxS + 77, H - 785, 11, cDk, fT, true);
                 }
-                bx(620, H - 560, 190, 32, cP, null, 0, 10); tx("TYPOGRAPHY", 715, H - 569, 12, cWhite, fT, true);
-                tx("Aa", 620, H - 620, 125, cP, fT, false);
-                tx("PRIMARY FONT\n" + (p.titleFont || "Poppins Bold") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n0123456789", 830, H - 638, 13, cDk, fT, false);
+                bx(600, H - 544, 190, 32, cP, null, 0, 10); tx("TYPOGRAPHY", 695, H - 553, 12, cWhite, fT, true);
+                tx("Aa", 600, H - 604, 125, cP, fT, false);
+                tx("PRIMARY FONT\n" + (p.titleFont || "Poppins Bold") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n0123456789", 810, H - 622, 13, cDk, fT, false);
 
                 // Application 2x3 Grid (Cup, Shopping Bag, Round Sign, Drawer Box, Sticker)
-                bx(0, H - 900, 400, 390, cCream, null, 0, 0);
-                if (dmPlaceMockup(g, "cup", 20, H - 930, 360, 280, cP)) { dmStampLogoOnMockup(g, "cup"); } else { bx(115, H - 970, 170, 230, cP, null, 0, 18); lg(200, H - 1085, 115, 80); }
-                tx("CUP PACKAGING", 200, H - 1235, 12, cDk, fT, true);
-                bx(400, H - 900, 400, 390, cP, null, 0, 0);
-                if (dmPlaceMockup(g, "bag", 420, H - 930, 360, 280, cP)) { dmStampLogoOnMockup(g, "bag"); } else { bx(490, H - 970, 220, 240, cCream, null, 0, 10); lg(600, H - 1085, 130, 90); }
-                tx("SHOPPING BAG", 600, H - 1235, 12, cWhite, fT, true);
-                bx(800, H - 900, 400, 390, cDk, null, 0, 0);
-                if (dmPlaceMockup(g, "signage", 820, H - 930, 360, 280, cP)) { dmStampLogoOnMockup(g, "signage"); } else {
-                    var rsEl = g.pathItems.ellipse(H - 960, 880, 240, 240); rsEl.filled = true; rsEl.fillColor = cP; rsEl.stroked = true; rsEl.strokeColor = cWhite; rsEl.strokeWidth = 4;
-                    lg(1000, H - 1080, 150, 105);
+                bx(0, H - 823, 400, 414, cCream, null, 0, 0);
+                if (dmPlaceMockup(g, "cup", 24, H - 859, 352, 336, cP)) { dmStampLogoOnMockup(g, "cup"); } else { bx(115, H - 912, 170, 230, cP, null, 0, 18); lg(200, H - 1027, 115, 80); }
+                tx("CUP PACKAGING", 200, H - 1207, 12, cDk, fT, true);
+                bx(400, H - 823, 400, 414, cP, null, 0, 0);
+                if (dmPlaceMockup(g, "bag", 424, H - 859, 352, 336, cP)) { dmStampLogoOnMockup(g, "bag"); } else { bx(490, H - 907, 220, 240, cCream, null, 0, 10); lg(600, H - 1027, 130, 90); }
+                tx("SHOPPING BAG", 600, H - 1207, 12, cWhite, fT, true);
+                bx(800, H - 823, 400, 414, cDk, null, 0, 0);
+                if (dmPlaceMockup(g, "signage", 824, H - 859, 352, 336, cP)) { dmStampLogoOnMockup(g, "signage"); } else {
+                    var rsEl = g.pathItems.ellipse(H - 907, 880, 240, 240); rsEl.filled = true; rsEl.fillColor = cP; rsEl.stroked = true; rsEl.strokeColor = cWhite; rsEl.strokeWidth = 4;
+                    lg(1000, H - 1027, 150, 105);
                 }
-                tx("ROUND SIGNAGE", 1000, H - 1235, 12, cWhite, fT, true);
+                tx("ROUND SIGNAGE", 1000, H - 1207, 12, cWhite, fT, true);
 
-                bx(0, H - 1290, 600, 380, cS, null, 0, 0);
-                if (dmPlaceMockup(g, "packaging", 20, H - 1320, 560, 280, cP)) { dmStampLogoOnMockup(g, "packaging"); } else { bx(140, H - 1355, 320, 220, cP, null, 0, 14); lg(300, H - 1465, 180, 110); }
-                tx("PACKAGING BOX", 300, H - 1615, 13, cWhite, fT, true);
-                bx(600, H - 1290, 600, 380, cDk, null, 0, 0); bx(740, H - 1355, 320, 220, cCream, null, 0, 48); lg(900, H - 1465, 190, 120); tx("BRAND STICKER", 900, H - 1615, 13, cWhite, fT, true);
+                bx(0, H - 1237, 600, 404, cS, null, 0, 0);
+                if (dmPlaceMockup(g, "packaging", 24, H - 1261, 552, 320, cP)) { dmStampLogoOnMockup(g, "packaging"); } else { bx(140, H - 1311, 320, 220, cP, null, 0, 14); lg(300, H - 1421, 180, 110); }
+                tx("PACKAGING BOX", 300, H - 1593, 13, cWhite, fT, true);
+                bx(600, H - 1237, 600, 404, cDk, null, 0, 0); bx(744, H - 1311, 312, 220, cCream, null, 0, 48); lg(900, H - 1421, 190, 120); tx("BRAND STICKER", 900, H - 1593, 13, cWhite, fT, true);
 
                 // Seamless Brand Pattern Footer Strip!
-                bx(0, H - 1670, W, 280, cP, null, 0, 0);
+                bx(0, H - 1641, W, 309, cP, null, 0, 0);
                 for (var pf = 0; pf < 6; pf++) {
-                    lg(100 + pf * 200, H - 1755, 90, 65);
-                    lg(190 + pf * 200, H - 1870, 80, 58);
+                    lg(100 + pf * 200, H - 1740, 90, 65);
+                    lg(190 + pf * 200, H - 1855, 80, 58);
                 }
             }
 
@@ -3684,6 +3759,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
 
         var seedLyr = doc.layers[0];
         seedLyr.name = "Brand_Identity_Book";
+        stampLayer = seedLyr; /* v17.7.25: logos go to the layer, not the section group */
         var logoSeedGrp = null;
         if (srcSel.length > 0) {
             try {
@@ -3726,10 +3802,12 @@ function dmGenerateBrandKitAI(payloadJSON) {
             tf.position = [center ? (x - tf.width / 2) : x, yTop];
             return tf;
         }
-        function placeLogo(grp, cx, cy, maxW, maxH) {
+        function placeLogo(grp, cx, cy, maxW, maxH, label) {
+            /* v17.7.25: logos are direct children of the layer
+             * (stampLayer), named, so one click selects ONLY the logo. */
             if (logoSeedGrp && logoSeedGrp.pageItems.length > 0) {
-                var lg = logoSeedGrp.duplicate(grp, ElementPlacement.PLACEATEND);
-                lg.name = "Brand_Logo";
+                var lg = logoSeedGrp.duplicate(stampLayer || grp, ElementPlacement.PLACEATEND);
+                try { lg.name = bkLogoName(label || "Brand Logo"); } catch (eNm2) {}
                 var gb = lg.geometricBounds;
                 var lw = Math.max(1, gb[2] - gb[0]), lh = Math.max(1, gb[1] - gb[3]);
                 var sc = Math.min(maxW / lw, maxH / lh) * 100;
@@ -3739,9 +3817,11 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 return lg;
             }
             var rSz = Math.min(maxW, maxH);
-            addBox(grp, cx - rSz / 2, cy + rSz / 2, rSz, rSz, colP, null, 0, rSz * 0.22);
-            addT(grp, bName.substring(0, 2), cx, cy + rSz * 0.22, rSz * 0.42, colDk, fTitle, true);
-            return null;
+            var plGrp = (stampLayer || grp).groupItems.add();
+            plGrp.name = bkLogoName(label || "Brand Logo");
+            addBox(plGrp, cx - rSz / 2, cy + rSz / 2, rSz, rSz, colP, null, 0, rSz * 0.22);
+            addT(plGrp, bName.substring(0, 2), cx, cy + rSz * 0.22, rSz * 0.42, colDk, fTitle, true);
+            return plGrp;
         }
         function slideHeader(g, x0, y0, num, title, isDark) {
             addBox(g, x0, y0, 1280, 720, isDark ? colDk : colLt, null, 0, 0);
@@ -3766,8 +3846,8 @@ function dmGenerateBrandKitAI(payloadJSON) {
             if (key === "sec1") {
                 slideHeader(g, x0, y0, "01", "BRAND STRATEGY", true);
                 // Hero Logo + Name + Tagline
-                addBox(g, x0 + 48, y0 - 92, 420, 580, colDk2, colP, 1.5, 20);
-                placeLogo(g, x0 + 258, y0 - 270, 210, 150);
+                addBox(g, x0 + 48, y0 - 96, 420, 576, colDk2, colP, 1.5, 20);
+                placeLogo(g, x0 + 258, y0 - 270, 210, 150, "Logo — Hero Lockup");
                 addT(g, bName, x0 + 258, y0 - 390, 34, colWhite, fTitle, true);
                 addT(g, p.tagline || "", x0 + 258, y0 - 440, 15, colP, fBody, true);
                 addT(g, "COMPLETE BRAND GUIDELINES", x0 + 258, y0 - 595, 11, colMuted, fTitle, true);
@@ -3781,29 +3861,30 @@ function dmGenerateBrandKitAI(payloadJSON) {
                     ["TAGLINE & SLOGAN", (p.tagline || "") + " • " + (p.website || "")]
                 ];
                 for (var sc = 0; sc < 6; sc++) {
-                    var sx = x0 + 492 + (sc % 2) * 376, sy = y0 - 92 - Math.floor(sc / 2) * 200;
-                    addBox(g, sx, sy, 356, 180, colDk2, colS, 0.8, 16);
+                    var sx = x0 + 492 + (sc % 2) * 380, sy = y0 - 96 - Math.floor(sc / 2) * 200;
+                    addBox(g, sx, sy, 360, 176, colDk2, colS, 0.8, 16);
                     addT(g, sCards[sc][0], sx + 22, sy - 26, 11, colP, fTitle, false);
                     addT(g, sCards[sc][1], sx + 22, sy - 60, 13, colWhite, fBody, false);
                 }
             } else if (key === "sec2") {
                 slideHeader(g, x0, y0, "02", "LOGO & IDENTITY SYSTEM", false);
                 var lCards = [
-                    [x0 + 48,  y0 - 92, 375, 275, colWhite, "PRIMARY LOGO (ON LIGHT)", false],
-                    [x0 + 452, y0 - 92, 375, 275, colDk,    "SECONDARY LOCKUP (ON DARK)", true],
-                    [x0 + 856, y0 - 92, 375, 275, colP,     "LOGO MARK / ICON & MONOGRAM", false],
-                    [x0 + 48,  y0 - 392, 576, 280, colWhite, "CLEAR SPACE GRID (MINIMUM 'X' PADDING)", false],
-                    [x0 + 654, y0 - 392, 577, 280, colDk2,   "MINIMUM SIZE & USAGE RULES (20mm Print / 64px Web)", true]
+                    [x0 + 48,  y0 - 96, 379, 276, colWhite, "PRIMARY LOGO (ON LIGHT)", false],
+                    [x0 + 451, y0 - 96, 378, 276, colDk,    "SECONDARY LOCKUP (ON DARK)", true],
+                    [x0 + 853, y0 - 96, 379, 276, colP,     "LOGO MARK / ICON & MONOGRAM", false],
+                    [x0 + 48,  y0 - 396, 580, 276, colWhite, "CLEAR SPACE GRID (MINIMUM 'X' PADDING)", false],
+                    [x0 + 652, y0 - 396, 580, 276, colDk2,   "MINIMUM SIZE & USAGE RULES (20mm Print / 64px Web)", true]
                 ];
+                var lLabels = ["Logo — Primary Lockup", "Logo — Secondary Lockup", "Logo — Mark / Monogram"];
                 for (var lc = 0; lc < lCards.length; lc++) {
                     var ld = lCards[lc];
                     addBox(g, ld[0], ld[1], ld[2], ld[3], ld[4], colP, 1.0, 16);
-                    if (lc < 3) placeLogo(g, ld[0] + ld[2] / 2, ld[1] - ld[3] * 0.44, ld[2] * 0.54, ld[3] * 0.48);
+                    if (lc < 3) placeLogo(g, ld[0] + ld[2] / 2, ld[1] - ld[3] * 0.44, ld[2] * 0.54, ld[3] * 0.48, lLabels[lc]);
                     else if (lc === 3) {
                         addBox(g, ld[0] + 120, ld[1] - 48, ld[2] - 240, ld[3] - 110, null, colS, 1.0, 0);
-                        placeLogo(g, ld[0] + ld[2] / 2, ld[1] - ld[3] * 0.44, 170, 105);
+                        placeLogo(g, ld[0] + ld[2] / 2, ld[1] - ld[3] * 0.44, 170, 105, "Logo — Clear Space");
                     } else {
-                        placeLogo(g, ld[0] + 120, ld[1] - 125, 90, 65);
+                        placeLogo(g, ld[0] + 120, ld[1] - 125, 90, 65, "Logo — Min Size");
                         addT(g, "Print Min: 20mm   |   Digital Min: 64px\nWordmark: " + bName + "\nMonogram: " + bName.substring(0, 2) + "\nAlways preserve original aspect ratio & clear space.", ld[0] + 200, ld[1] - 85, 12.5, colWhite, fBody, false);
                     }
                     addT(g, ld[5], ld[0] + 20, ld[1] - ld[3] + 26, 10.5, ld[6] ? colP : colDk, fTitle, false);
@@ -3819,168 +3900,168 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 ];
                 for (var s3 = 0; s3 < sws.length; s3++) {
                     var sx3 = x0 + 48 + s3 * 242;
-                    addBox(g, sx3, y0 - 100, 222, 340, sws[s3][4], colMuted, 0.7, 16);
-                    addT(g, sws[s3][0], sx3 + 16, y0 - 332, 10.5, sws[s3][5], fTitle, false);
-                    addT(g, String(sws[s3][1]).toUpperCase(), sx3 + 16, y0 - 356, 15, sws[s3][5], fTitle, false);
-                    addT(g, sws[s3][2] || "", sx3 + 16, y0 - 384, 9.5, sws[s3][5], fBody, false);
-                    addT(g, sws[s3][3] || "", sx3 + 16, y0 - 404, 9.5, sws[s3][5], fBody, false);
+                    addBox(g, sx3, y0 - 96, 218, 340, sws[s3][4], colMuted, 0.7, 16);
+                    addT(g, sws[s3][0], sx3 + 24, y0 - 328, 10.5, sws[s3][5], fTitle, false);
+                    addT(g, String(sws[s3][1]).toUpperCase(), sx3 + 24, y0 - 352, 15, sws[s3][5], fTitle, false);
+                    addT(g, sws[s3][2] || "", sx3 + 24, y0 - 380, 9.5, sws[s3][5], fBody, false);
+                    addT(g, sws[s3][3] || "", sx3 + 24, y0 - 400, 9.5, sws[s3][5], fBody, false);
                 }
                 // Color Usage Ratio Bar (60 / 30 / 10)
-                addT(g, "COLOR USAGE RATIO (60% NEUTRALS • 30% PRIMARY • 10% SECONDARY / ACCENT)", x0 + 48, y0 - 485, 12, colDk, fTitle, false);
-                addBox(g, x0 + 48, y0 - 520, 710, 120, colDk, null, 0, 12);
-                addT(g, "60% NEUTRAL BASE", x0 + 403, y0 - 570, 15, colWhite, fTitle, true);
-                addBox(g, x0 + 766, y0 - 520, 355, 120, colP, null, 0, 12);
-                addT(g, "30% PRIMARY", x0 + 943, y0 - 570, 14, colDk, fTitle, true);
-                addBox(g, x0 + 1129, y0 - 520, 103, 120, colA, null, 0, 12);
-                addT(g, "10%", x0 + 1180, y0 - 570, 13, colDk, fTitle, true);
+                addT(g, "COLOR USAGE RATIO (60% NEUTRALS • 30% PRIMARY • 10% SECONDARY / ACCENT)", x0 + 48, y0 - 472, 12, colDk, fTitle, false);
+                addBox(g, x0 + 48, y0 - 508, 682, 140, colDk, null, 0, 12);
+                addT(g, "60% NEUTRAL BASE", x0 + 389, y0 - 568, 15, colWhite, fTitle, true);
+                addBox(g, x0 + 754, y0 - 508, 341, 140, colP, null, 0, 12);
+                addT(g, "30% PRIMARY", x0 + 924, y0 - 568, 14, colDk, fTitle, true);
+                addBox(g, x0 + 1119, y0 - 508, 113, 140, colA, null, 0, 12);
+                addT(g, "10%", x0 + 1175, y0 - 568, 13, colDk, fTitle, true);
             } else if (key === "sec4") {
                 slideHeader(g, x0, y0, "04", "TYPOGRAPHY & HIERARCHY SYSTEM", true);
-                addBox(g, x0 + 48, y0 - 95, 560, 575, colDk2, colP, 1.2, 18);
-                addT(g, "Aa", x0 + 90, y0 - 135, 140, colP, fTitle, false);
-                addT(g, "PRIMARY DISPLAY: " + (p.titleFont || "Montserrat").toUpperCase(), x0 + 90, y0 - 330, 14, colP, fTitle, false);
-                addT(g, "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 !@#$%&*", x0 + 90, y0 - 368, 19, colWhite, fTitle, false);
-                addT(g, "WEIGHTS: Regular (400) • Medium (500) • Bold (700) • Black (900)", x0 + 90, y0 - 585, 11, colMuted, fBody, false);
+                addBox(g, x0 + 48, y0 - 96, 580, 576, colDk2, colP, 1.2, 18);
+                addT(g, "Aa", x0 + 72, y0 - 136, 140, colP, fTitle, false);
+                addT(g, "PRIMARY DISPLAY: " + (p.titleFont || "Montserrat").toUpperCase(), x0 + 72, y0 - 330, 14, colP, fTitle, false);
+                addT(g, "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 !@#$%&*", x0 + 72, y0 - 368, 19, colWhite, fTitle, false);
+                addT(g, "WEIGHTS: Regular (400) • Medium (500) • Bold (700) • Black (900)", x0 + 72, y0 - 588, 11, colMuted, fBody, false);
 
-                addBox(g, x0 + 636, y0 - 95, 596, 575, colDk2, colS, 1.2, 18);
-                addT(g, "TYPOGRAPHY HIERARCHY & BODY FONT (" + (p.bodyFont || "Arial") + ")", x0 + 670, y0 - 125, 12, colS, fTitle, false);
-                addT(g, "H1 — Display Headline (48pt Bold)", x0 + 670, y0 - 175, 28, colWhite, fTitle, false);
-                addT(g, "H2 — Section Heading (28pt SemiBold)", x0 + 670, y0 - 245, 20, colP, fTitle, false);
-                addT(g, "H3 — Card Subheading (18pt Medium)", x0 + 670, y0 - 305, 15, colWhite, fTitle, false);
-                addT(g, "Body Copy (12pt Regular) — " + (p.bodyFont || "Arial") + "\n" + String(p.personality || "").replace(/,\s*/g, " • "), x0 + 670, y0 - 365, 12.5, colMuted, fBody, false);
-                addT(g, "CAPTION / METADATA (9PT UPPERCASE TRACKED)", x0 + 670, y0 - 465, 10, colA, fTitle, false);
+                addBox(g, x0 + 652, y0 - 96, 580, 576, colDk2, colS, 1.2, 18);
+                addT(g, "TYPOGRAPHY HIERARCHY & BODY FONT (" + (p.bodyFont || "Arial") + ")", x0 + 676, y0 - 136, 12, colS, fTitle, false);
+                addT(g, "H1 — Display Headline (48pt Bold)", x0 + 676, y0 - 186, 28, colWhite, fTitle, false);
+                addT(g, "H2 — Section Heading (28pt SemiBold)", x0 + 676, y0 - 256, 20, colP, fTitle, false);
+                addT(g, "H3 — Card Subheading (18pt Medium)", x0 + 676, y0 - 316, 15, colWhite, fTitle, false);
+                addT(g, "Body Copy (12pt Regular) — " + (p.bodyFont || "Arial") + "\n" + String(p.personality || "").replace(/,\s*/g, " • "), x0 + 676, y0 - 376, 12.5, colMuted, fBody, false);
+                addT(g, "CAPTION / METADATA (9PT UPPERCASE TRACKED)", x0 + 676, y0 - 476, 10, colA, fTitle, false);
             } else if (key === "sec5") {
                 slideHeader(g, x0, y0, "05", "BRAND GRAPHICS, PATTERN & MOTIFS", true);
                 // Pattern Grid Tile
-                addBox(g, x0 + 48, y0 - 95, 580, 575, colDk2, colP, 1.2, 18);
-                addT(g, "BRAND PATTERN TILE", x0 + 72, y0 - 118, 12, colP, fTitle, false);
+                addBox(g, x0 + 48, y0 - 96, 580, 576, colDk2, colP, 1.2, 18);
+                addT(g, "BRAND PATTERN TILE", x0 + 72, y0 - 120, 12, colP, fTitle, false);
                 for (var py = 0; py < 4; py++) {
                     for (var px = 0; px < 5; px++) {
-                        addBox(g, x0 + 82 + px * 104, y0 - 160 - py * 116, 84, 84, (px + py) % 2 === 0 ? colP : colS, null, 0, 18);
+                        addBox(g, x0 + 88 + px * 104, y0 - 156 - py * 116, 84, 84, (px + py) % 2 === 0 ? colP : colS, null, 0, 18);
                     }
                 }
                 // Shapes, Iconography & Photo Direction
-                addBox(g, x0 + 656, y0 - 95, 576, 274, colDk2, colS, 1.0, 18);
-                addT(g, "GRAPHIC MOTIFS & ICONOGRAPHY STYLE", x0 + 682, y0 - 122, 12, colS, fTitle, false);
-                addBox(g, x0 + 686, y0 - 175, 90, 90, colP, null, 0, 45);
-                addBox(g, x0 + 802, y0 - 175, 90, 90, colS, null, 0, 18);
-                addBox(g, x0 + 918, y0 - 175, 90, 90, null, colA, 4, 18);
-                addBox(g, x0 + 1034, y0 - 175, 160, 90, colA, null, 0, 45);
+                addBox(g, x0 + 652, y0 - 96, 580, 276, colDk2, colS, 1.0, 18);
+                addT(g, "GRAPHIC MOTIFS & ICONOGRAPHY STYLE", x0 + 676, y0 - 120, 12, colS, fTitle, false);
+                addBox(g, x0 + 676, y0 - 176, 90, 90, colP, null, 0, 45);
+                addBox(g, x0 + 790, y0 - 176, 90, 90, colS, null, 0, 18);
+                addBox(g, x0 + 904, y0 - 176, 90, 90, null, colA, 4, 18);
+                addBox(g, x0 + 1018, y0 - 176, 190, 90, colA, null, 0, 45);
 
-                addBox(g, x0 + 656, y0 - 396, 576, 274, colLt, null, 0, 18);
-                addT(g, "PHOTOGRAPHY & TEXTURE DIRECTION", x0 + 682, y0 - 426, 12, colDk, fTitle, false);
+                addBox(g, x0 + 652, y0 - 396, 580, 276, colLt, null, 0, 18);
+                addT(g, "PHOTOGRAPHY & TEXTURE DIRECTION", x0 + 676, y0 - 420, 12, colDk, fTitle, false);
                 var photoDir = "Photography for " + bName + (p.personality ? " — " + String(p.personality).replace(/,\s*/g, ", ") + "." : ".");
                 photoDir += "\n• " + (p.industry ? ("Shot in the " + p.industry + " world — real places, real materials") : "Real places, real materials, honest light");
                 photoDir += "\n• Color grading anchored to Primary & Dark Neutral tones";
                 photoDir += "\n• Generous negative space kept free for typography";
                 if (p.values) photoDir += "\n• " + String(p.values).replace(/,\s*/g, " • ");
-                addT(g, photoDir, x0 + 682, y0 - 472, 13, colDk, fBody, false);
+                addT(g, photoDir, x0 + 676, y0 - 466, 13, colDk, fBody, false);
             } else if (key === "sec6") {
                 slideHeader(g, x0, y0, "06", "COMPLETE STATIONERY SUITE (CARD • LETTERHEAD • ENVELOPE • INVOICE • ID • EMAIL SIG)", false);
                 // Business Card Front + Back
-                addBox(g, x0 + 48, y0 - 95, 250, 155, colDk, colP, 1, 10);
-                placeLogo(g, x0 + 173, y0 - 158, 95, 65);
+                addBox(g, x0 + 48, y0 - 96, 250, 155, colDk, colP, 1, 10);
+                placeLogo(g, x0 + 173, y0 - 158, 95, 65, "Logo — Business Card");
                 addT(g, bName, x0 + 173, y0 - 210, 11, colWhite, fTitle, true);
-                addBox(g, x0 + 312, y0 - 95, 250, 155, colWhite, colMuted, 0.7, 10);
-                addBox(g, x0 + 312, y0 - 95, 10, 155, colP, null, 0, 0);
-                addT(g, bName + "\n" + (p.phone || "") + "\n" + (p.email || "") + "\n" + (p.website || ""), x0 + 334, y0 - 122, 9.5, colDk, fBody, false);
+                addBox(g, x0 + 322, y0 - 96, 250, 155, colWhite, colMuted, 0.7, 10);
+                addBox(g, x0 + 322, y0 - 96, 10, 155, colP, null, 0, 0);
+                addT(g, bName + "\n" + (p.phone || "") + "\n" + (p.email || "") + "\n" + (p.website || ""), x0 + 344, y0 - 122, 9.5, colDk, fBody, false);
                 // DL Envelope — real stationery mockup photo when available, else vector
-                addBox(g, x0 + 48, y0 - 270, 514, 180, colWhite, colMuted, 0.7, 10);
-                addBox(g, x0 + 48, y0 - 436, 514, 14, colP, null, 0, 0);
-                if (dmPlaceMockup(g, "stationery", x0 + 64, y0 - 286, 482, 148, colP)) { dmStampLogoOnMockup(g, "stationery"); } else {
-                    placeLogo(g, x0 + 108, y0 - 322, 68, 42);
-                    addT(g, "DL ENVELOPE (220×110mm)\n" + (p.address || ""), x0 + 158, y0 - 306, 10, colDk, fBody, false);
+                addBox(g, x0 + 48, y0 - 275, 524, 180, colWhite, colMuted, 0.7, 10);
+                addBox(g, x0 + 48, y0 - 441, 524, 14, colP, null, 0, 0);
+                if (dmPlaceMockup(g, "stationery", x0 + 72, y0 - 299, 476, 132, colP)) { dmStampLogoOnMockup(g, "stationery"); } else {
+                    placeLogo(g, x0 + 116, y0 - 332, 68, 42);
+                    addT(g, "DL ENVELOPE (220×110mm)\n" + (p.address || ""), x0 + 166, y0 - 314, 10, colDk, fBody, false);
                 }
                 // Email Signature & Notepad
-                addBox(g, x0 + 48, y0 - 470, 514, 195, colDk2, colS, 1, 12);
-                placeLogo(g, x0 + 115, y0 - 565, 80, 60);
-                addT(g, "EMAIL SIGNATURE TEMPLATE\n" + bName + "\n" + (p.phone || "") + " | " + (p.email || "") + "\n" + (p.website || ""), x0 + 185, y0 - 510, 11.5, colWhite, fBody, false);
+                addBox(g, x0 + 48, y0 - 479, 524, 193, colDk2, colS, 1, 12);
+                placeLogo(g, x0 + 115, y0 - 575, 80, 60);
+                addT(g, "EMAIL SIGNATURE TEMPLATE\n" + bName + "\n" + (p.phone || "") + " | " + (p.email || "") + "\n" + (p.website || ""), x0 + 185, y0 - 519, 11.5, colWhite, fBody, false);
                 // A4 Letterhead + Invoice Preview (Right)
-                addBox(g, x0 + 588, y0 - 95, 315, 570, colWhite, colMuted, 0.8, 10);
-                addBox(g, x0 + 588, y0 - 95, 315, 14, colP, null, 0, 0);
-                placeLogo(g, x0 + 642, y0 - 142, 65, 40);
-                addT(g, "LETTERHEAD & INVOICE / QUOTATION\n\n" + bName + "\n" + (p.email || "") + "\n" + (p.website || "") + "\n\nInvoice #: INV-2026-001", x0 + 610, y0 - 190, 10, colDk, fBody, false);
-                addBox(g, x0 + 588, y0 - 630, 315, 35, colDk, null, 0, 0);
+                addBox(g, x0 + 596, y0 - 96, 320, 576, colWhite, colMuted, 0.8, 10);
+                addBox(g, x0 + 596, y0 - 96, 320, 14, colP, null, 0, 0);
+                placeLogo(g, x0 + 650, y0 - 142, 65, 40);
+                addT(g, "LETTERHEAD & INVOICE / QUOTATION\n\n" + bName + "\n" + (p.email || "") + "\n" + (p.website || "") + "\n\nInvoice #: INV-2026-001", x0 + 618, y0 - 190, 10, colDk, fBody, false);
+                addBox(g, x0 + 596, y0 - 637, 320, 35, colDk, null, 0, 0);
                 // Staff ID Card & Folder
-                addBox(g, x0 + 928, y0 - 95, 304, 570, colWhite, colP, 1.2, 16);
-                addBox(g, x0 + 928, y0 - 95, 304, 130, colDk, null, 0, 12);
-                placeLogo(g, x0 + 1080, y0 - 160, 110, 72);
-                addBox(g, x0 + 1010, y0 - 260, 140, 140, colLt, colP, 3, 70);
-                addT(g, "STAFF ID CARD\n" + bName + "\nID #001 • Authorized", x0 + 1080, y0 - 430, 13, colDk, fTitle, true);
+                addBox(g, x0 + 940, y0 - 96, 292, 576, colWhite, colP, 1.2, 16);
+                addBox(g, x0 + 940, y0 - 96, 292, 130, colDk, null, 0, 12);
+                placeLogo(g, x0 + 1086, y0 - 160, 110, 72);
+                addBox(g, x0 + 1016, y0 - 260, 140, 140, colLt, colP, 3, 70);
+                addT(g, "STAFF ID CARD\n" + bName + "\nID #001 • Authorized", x0 + 1086, y0 - 430, 13, colDk, fTitle, true);
             } else if (key === "sec7") {
                 slideHeader(g, x0, y0, "07", "MARKETING & SOCIAL MEDIA KIT (FB • IG POST/STORY • BANNER • FLYER)", true);
                 // IG Square Post
-                addBox(g, x0 + 48, y0 - 95, 360, 360, colDk2, colP, 2, 18);
-                placeLogo(g, x0 + 228, y0 - 215, 140, 100);
+                addBox(g, x0 + 48, y0 - 96, 360, 360, colDk2, colP, 2, 18);
+                placeLogo(g, x0 + 228, y0 - 215, 140, 100, "Logo — Social Post");
                 addT(g, bName, x0 + 228, y0 - 305, 24, colWhite, fTitle, true);
                 addT(g, "INSTAGRAM / FB POST (1080×1080)", x0 + 228, y0 - 418, 10, colP, fTitle, true);
                 // IG Story Vertical — real phone mockup photo when available
-                addBox(g, x0 + 432, y0 - 95, 240, 570, colP, null, 0, 18);
-                if (dmPlaceMockup(g, "phone", x0 + 448, y0 - 111, 208, 280, colP)) { dmStampLogoOnMockup(g, "phone"); } else { placeLogo(g, x0 + 552, y0 - 280, 130, 95); }
+                addBox(g, x0 + 432, y0 - 96, 240, 576, colP, null, 0, 18);
+                if (dmPlaceMockup(g, "phone", x0 + 456, y0 - 120, 192, 280, colP)) { dmStampLogoOnMockup(g, "phone"); } else { placeLogo(g, x0 + 552, y0 - 280, 130, 95); }
                 addT(g, "IG STORY\n1080×1920", x0 + 552, y0 - 420, 16, colDk, fTitle, true);
                 // FB Cover Banner — real social mockup photo when available
-                addBox(g, x0 + 696, y0 - 95, 536, 210, colDk2, colS, 2, 16);
-                if (dmPlaceMockup(g, "social", x0 + 712, y0 - 111, 240, 178, colP)) {
+                addBox(g, x0 + 696, y0 - 96, 536, 210, colDk2, colS, 2, 16);
+                if (dmPlaceMockup(g, "social", x0 + 720, y0 - 120, 240, 162, colP)) {
                     dmStampLogoOnMockup(g, "social");
                     addT(g, bName + "\n" + (p.tagline || "") + "\nFACEBOOK COVER (851×315)", x0 + 980, y0 - 155, 15, colWhite, fTitle, false);
                 } else {
-                    placeLogo(g, x0 + 805, y0 - 200, 120, 90);
-                    addT(g, bName + "\n" + (p.tagline || "") + "\nFACEBOOK COVER (851×315)", x0 + 900, y0 - 155, 15, colWhite, fTitle, false);
+                    placeLogo(g, x0 + 840, y0 - 201, 120, 90);
+                    addT(g, bName + "\n" + (p.tagline || "") + "\nFACEBOOK COVER (851×315)", x0 + 940, y0 - 155, 15, colWhite, fTitle, false);
                 }
                 // Flyer & Poster
-                addBox(g, x0 + 696, y0 - 330, 536, 335, colLt, colP, 1.5, 16);
+                addBox(g, x0 + 696, y0 - 330, 536, 342, colLt, colP, 1.5, 16);
                 addBox(g, x0 + 696, y0 - 330, 536, 60, colDk, null, 0, 12);
                 addT(g, "PROMOTIONAL FLYER / POSTER / AD TEMPLATE", x0 + 964, y0 - 352, 13, colP, fTitle, true);
-                placeLogo(g, x0 + 964, y0 - 480, 160, 105);
+                placeLogo(g, x0 + 964, y0 - 510, 160, 105);
                 addT(g, (p.website || "") + "  •  " + (p.phone || ""), x0 + 964, y0 - 620, 13, colDk, fTitle, true);
                 // Promo Strip bottom left
-                addBox(g, x0 + 48, y0 - 480, 360, 185, colS, null, 0, 16);
+                addBox(g, x0 + 48, y0 - 480, 360, 192, colS, null, 0, 16);
                 addT(g, "PROMO WEB BANNER\n" + (p.tagline || ""), x0 + 228, y0 - 548, 15, colWhite, fTitle, true);
             } else if (key === "sec8") {
                 slideHeader(g, x0, y0, "08", "PACKAGING DESIGN SUITE (BOX • BAG • LABEL • TAG • STICKER • THANK YOU)", false);
                 var pCards = [
-                    [x0 + 48,  y0 - 95, 375, 275, colDk,    "PRODUCT BOX DESIGN", true, "packaging"],
-                    [x0 + 452, y0 - 95, 375, 275, colP,     "SHOPPING BAG", false, "bag"],
-                    [x0 + 856, y0 - 95, 375, 275, colWhite, "PRODUCT LABEL & STICKER", false, ""],
-                    [x0 + 48,  y0 - 395, 375, 275, colWhite, "HANG TAG (50×90mm)", false, ""],
-                    [x0 + 452, y0 - 395, 375, 275, colDk2,   "THANK YOU CARD", true, ""],
-                    [x0 + 856, y0 - 395, 375, 275, colS,     "BRANDED TISSUE PAPER PATTERN", true, ""]
+                    [x0 + 48,  y0 - 96, 379, 276, colDk,    "PRODUCT BOX DESIGN", true, "packaging"],
+                    [x0 + 451, y0 - 96, 378, 276, colP,     "SHOPPING BAG", false, "bag"],
+                    [x0 + 853, y0 - 96, 379, 276, colWhite, "PRODUCT LABEL & STICKER", false, ""],
+                    [x0 + 48,  y0 - 396, 379, 276, colWhite, "HANG TAG (50×90mm)", false, ""],
+                    [x0 + 451, y0 - 396, 378, 276, colDk2,   "THANK YOU CARD", true, ""],
+                    [x0 + 853, y0 - 396, 379, 276, colS,     "BRANDED TISSUE PAPER PATTERN", true, ""]
                 ];
                 for (var pc = 0; pc < pCards.length; pc++) {
                     var pd = pCards[pc];
                     addBox(g, pd[0], pd[1], pd[2], pd[3], pd[4], colP, 1.0, 16);
-                    var placed8 = pd[7] ? dmPlaceMockup(g, pd[7], pd[0] + 16, pd[1] - 16, pd[2] - 32, pd[3] - 64, colP) : false;
-                    if (placed8) dmStampLogoOnMockup(g, pd[7]); else placeLogo(g, pd[0] + pd[2] / 2, pd[1] - pd[3] * 0.44, pd[2] * 0.48, pd[3] * 0.44);
-                    addT(g, pd[5], pd[0] + pd[2] / 2, pd[1] - pd[3] + 28, 11, pd[6] ? colWhite : colDk, fTitle, true);
+                    var placed8 = pd[7] ? dmPlaceMockup(g, pd[7], pd[0] + 24, pd[1] - 24, pd[2] - 48, pd[3] - 72, colP) : false;
+                    if (placed8) dmStampLogoOnMockup(g, pd[7]); else placeLogo(g, pd[0] + pd[2] / 2, pd[1] - pd[3] * 0.5 + 12, pd[2] * 0.48, pd[3] * 0.44);
+                    addT(g, pd[5], pd[0] + pd[2] / 2, pd[1] - pd[3] + 60, 11, pd[6] ? colWhite : colDk, fTitle, true);
                 }
             } else if (key === "sec9") {
                 slideHeader(g, x0, y0, "09", "BRAND APPLICATIONS (SIGNBOARD • STOREFRONT • OFFICE • UNIFORM • VEHICLE • BOOTH)", true);
                 var aCards = [
-                    [x0 + 48,  y0 - 95, 576, 175, colDk2, "SHOP SIGNBOARD & STOREFRONT FASCIA", "signage"],
-                    [x0 + 656, y0 - 95, 576, 175, colP,   "OFFICE RECEPTION WALL BRANDING", ""],
-                    [x0 + 48,  y0 - 295, 375, 375, colDk2, "STAFF UNIFORM & MERCH", "apparel"],
-                    [x0 + 452, y0 - 295, 375, 375, colS,   "DELIVERY VEHICLE WRAP", "billboard"],
-                    [x0 + 856, y0 - 295, 375, 375, colLt,  "EXHIBITION BOOTH BACKDROP", "laptop"]
+                    [x0 + 48,  y0 - 96, 580, 180, colDk2, "SHOP SIGNBOARD & STOREFRONT FASCIA", "signage"],
+                    [x0 + 652, y0 - 96, 580, 180, colP,   "OFFICE RECEPTION WALL BRANDING", ""],
+                    [x0 + 48,  y0 - 300, 379, 372, colDk2, "STAFF UNIFORM & MERCH", "apparel"],
+                    [x0 + 451, y0 - 300, 378, 372, colS,   "DELIVERY VEHICLE WRAP", "billboard"],
+                    [x0 + 853, y0 - 300, 379, 372, colLt,  "EXHIBITION BOOTH BACKDROP", "laptop"]
                 ];
                 for (var ac = 0; ac < aCards.length; ac++) {
                     var ad = aCards[ac];
                     var isLtC = (ac === 1 || ac === 4);
                     addBox(g, ad[0], ad[1], ad[2], ad[3], ad[4], colP, 1.0, 16);
-                    var placed9 = ad[6] ? dmPlaceMockup(g, ad[6], ad[0] + 16, ad[1] - 16, ad[2] - 32, ad[3] - 64, colP) : false;
-                    if (placed9) dmStampLogoOnMockup(g, ad[6]); else placeLogo(g, ad[0] + ad[2] / 2, ad[1] - ad[3] * 0.44, ad[2] * 0.44, ad[3] * 0.42);
-                    addT(g, ad[5], ad[0] + ad[2] / 2, ad[1] - ad[3] + 28, 11, isLtC ? colDk : colWhite, fTitle, true);
+                    var placed9 = ad[6] ? dmPlaceMockup(g, ad[6], ad[0] + 24, ad[1] - 24, ad[2] - 48, ad[3] - 72, colP) : false;
+                    if (placed9) dmStampLogoOnMockup(g, ad[6]); else placeLogo(g, ad[0] + ad[2] / 2, ad[1] - ad[3] * 0.5 + 12, ad[2] * 0.44, ad[3] * 0.42);
+                    addT(g, ad[5], ad[0] + ad[2] / 2, ad[1] - ad[3] + 60, 11, isLtC ? colDk : colWhite, fTitle, true);
                 }
             } else if (key === "sec10") {
                 slideHeader(g, x0, y0, "10", "BRAND GUIDELINES — LOGO DO'S, DON'TS & CONSISTENCY RULES", false);
-                addBox(g, x0 + 48, y0 - 95, 576, 575, colWhite, colGrn, 2.0, 18);
-                addT(g, "✓  LOGO DO'S (CORRECT USAGE)", x0 + 78, y0 - 125, 16, colGrn, fTitle, false);
-                placeLogo(g, x0 + 336, y0 - 260, 200, 130);
-                addT(g, "✓ Keep original proportions & vector sharpness\n✓ Maintain clear space around all 4 sides\n✓ Use official Primary, Dark, or White lockups\n✓ Apply approved brand fonts & 60-30-10 color ratio\n✓ Export CMYK 300 DPI for print, RGB for digital", x0 + 78, y0 - 390, 13, colDk, fBody, false);
+                addBox(g, x0 + 48, y0 - 96, 580, 576, colWhite, colGrn, 2.0, 18);
+                addT(g, "✓  LOGO DO'S (CORRECT USAGE)", x0 + 72, y0 - 120, 16, colGrn, fTitle, false);
+                placeLogo(g, x0 + 338, y0 - 260, 200, 130, "Logo — Correct Usage");
+                addT(g, "✓ Keep original proportions & vector sharpness\n✓ Maintain clear space around all 4 sides\n✓ Use official Primary, Dark, or White lockups\n✓ Apply approved brand fonts & 60-30-10 color ratio\n✓ Export CMYK 300 DPI for print, RGB for digital", x0 + 72, y0 - 390, 13, colDk, fBody, false);
 
-                addBox(g, x0 + 656, y0 - 95, 576, 575, colWhite, colRed, 2.0, 18);
-                addT(g, "✕  LOGO DON'TS (NEVER DO)", x0 + 686, y0 - 125, 16, colRed, fTitle, false);
-                addT(g, "✕ Never stretch, squash, or skew the logo\n✕ Never rotate or tilt the primary mark\n✕ Never apply unapproved colors or gradients\n✕ Never add heavy drop shadows or outer glows\n✕ Never place dark logo on dark or busy photos\n✕ Never crop or crowd text inside clear space", x0 + 686, y0 - 210, 13.5, colDk, fBody, false);
-                addBox(g, x0 + 686, y0 - 520, 516, 115, colDk, null, 0, 14);
-                addT(g, "OFFICIAL BRAND CONTACT\n" + bName + " • " + (p.website || "") + "\n" + (p.email || "") + " • " + (p.phone || ""), x0 + 944, y0 - 548, 12, colP, fTitle, true);
+                addBox(g, x0 + 652, y0 - 96, 580, 576, colWhite, colRed, 2.0, 18);
+                addT(g, "✕  LOGO DON'TS (NEVER DO)", x0 + 676, y0 - 120, 16, colRed, fTitle, false);
+                addT(g, "✕ Never stretch, squash, or skew the logo\n✕ Never rotate or tilt the primary mark\n✕ Never apply unapproved colors or gradients\n✕ Never add heavy drop shadows or outer glows\n✕ Never place dark logo on dark or busy photos\n✕ Never crop or crowd text inside clear space", x0 + 676, y0 - 210, 13.5, colDk, fBody, false);
+                addBox(g, x0 + 676, y0 - 524, 532, 120, colDk, null, 0, 14);
+                addT(g, "OFFICIAL BRAND CONTACT\n" + bName + " • " + (p.website || "") + "\n" + (p.email || "") + " • " + (p.phone || ""), x0 + 942, y0 - 552, 12, colP, fTitle, true);
             }
         }
 
