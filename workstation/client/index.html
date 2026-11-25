@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design360n Workstation v17.7.1 — Illustrator Extension</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- LICENSE GATE: covers the whole panel until a valid key unlocks it (js/license-gate.js) -->
+  <div id="authGate">
+    <div class="auth-box">
+      <div class="auth-icon">D3</div>
+      <div class="auth-title">Design360n Workstation</div>
+      <div class="auth-sub">Enter your License Key to unlock</div>
+      <input id="licKeyInput" type="text" placeholder="License Key  (e.g. D360-XXXX-XXXX)" autocomplete="off" spellcheck="false" />
+      <button id="licActivateBtn" class="btn btn-primary" type="button">Activate</button>
+      <p id="licMsg" class="auth-msg"></p>
+      <div class="auth-dev">Device: <span id="licDevId"></span></div>
+    </div>
+  </div>
+  <div class="app-shell">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">D3</div>
+        <div>
+          <div class="brand-title">Design360n Workstation <span style="font-size:10px;color:#3bcdca;">v17.7.1</span></div>
+          <div class="brand-sub">Packaging • 3D T-Shirt • Stroke AI</div>
+        </div>
+      </div>
+      <button id="licChip" class="status-pill lic-chip" type="button" title="License status — click to deactivate / switch key"><span id="licChipText">Locked</span></button>
+      <div id="hostStatus" class="status-pill">Illustrator CEP</div>
+    </header>
+  <!-- UPDATE CHECK: auto-updates from GitHub when a newer Workstation version is published (js/update-check.js). -->
+  <div id="updBanner" class="upd-banner" style="display:none;">
+    <span>Update available: <b id="updVer"></b><span id="updNotes"></span></span>
+    <button id="updNowBtn" class="btn btn-sm" type="button">Update Now</button>
+    <button id="updDismissBtn" class="btn btn-sm" type="button">Dismiss</button>
+  </div>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="tab-dieline"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg><span>Box 3D</span></button>
+      <button class="tab-btn" data-tab="tab-apparel"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg><span>Apparel</span></button>
+      <button class="tab-btn" data-tab="tab-export"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export</span></button>
+      <button class="tab-btn" data-tab="tab-tools"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Tools</span></button>
+      <button class="tab-btn" data-tab="tab-stroke"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span>Stroke</span></button>
+    </nav>
+
+    <main class="content">
+      <div id="toast" class="toast"></div>
+
+      <!-- TAB 1: 2D DIELINE GENERATOR -->
+      <section id="tab-dieline" class="tab-pane active">
+        <div class="card">
+          <div class="card-title"><span>Quick Industry Presets</span></div>
+          <div class="field">
+            <select id="sizePreset">
+              <option value="">— Load Any Packaging Size Preset (32 Sizes) —</option>
+            </select>
+          </div>
+
+          <div class="card-title" style="margin-top:8px;">
+            <span>Packaging Library (30 Templates)</span>
+            <span id="typeDesc" style="text-transform:none;font-weight:400;color:#3bcdca;"></span>
+          </div>
+          <div class="field">
+            <input id="boxSearch" type="text" placeholder="Search 30 packaging types (pizza, bag, pouch, cake, drawer...)" style="margin-bottom:5px;" />
+            <select id="boxType"></select>
+          </div>
+
+          <div class="grid-4" style="margin-top:8px;">
+            <div class="field">
+              <label>Unit</label>
+              <select id="unit">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="in">in</option>
+              </select>
+            </div>
+            <div class="field"><label>Length (L)</label><input id="dimL" type="number" step="0.5" min="10" value="80" /></div>
+            <div class="field"><label>Width (W)</label><input id="dimW" type="number" step="0.5" min="5" value="50" /></div>
+            <div class="field"><label>Height (H)</label><input id="dimH" type="number" step="0.5" min="10" value="130" /></div>
+          </div>
+
+          <div class="grid-4" style="margin-top:6px;">
+            <div class="field"><label>Board (t)</label><input id="dimT" type="number" step="0.1" min="0.1" value="0.4" /></div>
+            <div class="field"><label>Glue Flap</label><input id="dimGlue" type="number" step="0.5" min="0" value="14" /></div>
+            <div class="field"><label>Tuck / Top</label><input id="dimTuck" type="number" step="0.5" min="0" value="16" /></div>
+            <div class="field"><label>Bleed</label><input id="dimBleed" type="number" step="0.5" min="0" value="3" /></div>
+          </div>
+
+          <div id="customOptions" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.14);">
+            <div class="card-title">Custom Box Features</div>
+            <div class="checkbox-row">
+              <label><input type="checkbox" id="optTopTuck" checked /> Top Tuck</label>
+              <label><input type="checkbox" id="optBottomTuck" checked /> Bottom Tuck</label>
+              <label><input type="checkbox" id="optDustFlaps" checked /> Dust Flaps</label>
+              <label><input type="checkbox" id="optWindow" checked /> Die-Cut Window</label>
+              <label><input type="checkbox" id="optHangTab" /> Euro Hang Slot</label>
+            </div>
+            <div class="grid-2" style="margin-top:6px;">
+              <div class="field"><label>Window Width</label><input id="winW" type="number" min="10" value="48" /></div>
+              <div class="field"><label>Window Height</label><input id="winH" type="number" min="10" value="62" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>2D Blueprint Preview</span>
+            <span id="sheetSize" style="text-transform:none;color:#cbd5e1;"></span>
+          </div>
+          <div id="svgPreview" class="preview-box"></div>
+          <div class="legend-bar">
+            <span><i class="legend-dot" style="background:#f43f5e;"></i>Cut / Trim</span>
+            <span><i class="legend-dot" style="background:#38bdf8;"></i>Crease / Fold</span>
+            <span><i class="legend-dot" style="background:#10b981;"></i>Bleed</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="checkbox-row" style="margin-bottom:8px;">
+            <label><input type="checkbox" id="includeDims" checked /> Dimensions</label>
+            <label><input type="checkbox" id="lockLayers" checked /> Lock Tech Layers</label>
+            <label><input type="checkbox" id="useActiveDoc" /> Use Active Doc</label>
+          </div>
+          <div class="grid-2">
+            <button id="btnGenerateAI" class="btn btn-primary">Generate in Illustrator</button>
+            <button id="btnExportSVG" class="btn">Download SVG</button>
+          </div>
+        </div>
+
+        <!-- INTEGRATED LIVE 3D BOX MOCKUP (SAME PAGE AS BOX DIELINE!) -->
+
+        <div class="card">
+          <div class="card-title">
+            <span>Interactive 3D Preview (Drag to Orbit)</span>
+            <label style="display:flex;align-items:center;gap:4px;text-transform:none;cursor:pointer;">
+              <input type="checkbox" id="autoRotate" /> Auto-Spin
+            </label>
+          </div>
+          <div class="preview-box tall">
+            <canvas id="canvas3d" width="520" height="400"></canvas>
+          </div>
+          <div style="margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#94a3b8;margin-bottom:4px;">
+              <span>2D Flat → 3D Box Fold: <strong id="foldVal" style="color:#3bcdca;">100%</strong></span>
+              <button id="btnPlayFold2Dto3D" class="btn btn-primary btn-sm" style="padding:3px 9px;font-size:10.5px;">▶ Play 2D → 3D Fold</button>
+            </div>
+            <input id="foldSlider" type="range" min="0" max="100" value="100" />
+          </div>
+          <div class="grid-3" style="margin-top:8px;">
+            <button id="btnQuickPNG" class="btn btn-primary btn-sm">HD 1600px PNG</button>
+            <button id="btnQuickFoldVideo" class="btn btn-primary btn-sm">2D→3D Video</button>
+            <button id="btnQuickVideo" class="btn btn-sm">360° Spin Video</button>
+          </div>
+          <div class="grid-2" style="margin-top:6px;">
+            <button id="btnQuickOBJ" class="btn btn-sm">Download 3D .OBJ</button>
+            <button id="btnQuickHTML" class="btn btn-sm">3D HTML Viewer</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Camera Angles</div>
+          <div class="grid-4">
+            <button class="btn btn-sm angle-btn" data-angle="hero">Hero 3/4</button>
+            <button class="btn btn-sm angle-btn" data-angle="isometric">Isometric</button>
+            <button class="btn btn-sm angle-btn" data-angle="front">Front</button>
+            <button class="btn btn-sm angle-btn" data-angle="back">Back</button>
+            <button class="btn btn-sm angle-btn" data-angle="left">Left</button>
+            <button class="btn btn-sm angle-btn" data-angle="right">Right</button>
+            <button class="btn btn-sm angle-btn" data-angle="top">Top</button>
+            <button class="btn btn-sm angle-btn" data-angle="flat">Flat Open</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Material, Studio & Artwork</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Material Finish</label>
+              <select id="matSelect">
+                <option value="white" selected>Glossy White</option>
+                <option value="kraft">Kraft Cardboard</option>
+                <option value="black">Matte Black</option>
+                <option value="corrugated">E-Flute Corrugated</option>
+                <option value="custom">Custom Color</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Studio Background</label>
+              <select id="bgSelect">
+                <option value="studio_dark" selected>Obsidian Studio</option>
+                <option value="studio_teal">Cyber Teal</option>
+                <option value="studio_light">Clean White Studio</option>
+                <option value="transparent">Transparent</option>
+              </select>
+            </div>
+          </div>
+          <div id="customColorWrap" class="field" style="display:none;margin-top:4px;">
+            <label>Custom Board Color</label>
+            <input id="customColor" type="color" value="#3bcdca" style="height:28px;width:100%;border:none;background:transparent;cursor:pointer;" />
+          </div>
+          <div class="field" style="margin-top:6px;">
+            <label>Design → 3D Mapping Mode</label>
+            <select id="texModeSelect">
+              <option value="dieline_wrap" selected>Full Dieline Wrap (All Sides: Front, Back, Left, Right, Top)</option>
+              <option value="front_only">Front Face / Label Only</option>
+            </select>
+          </div>
+          <div class="grid-2" style="margin-top:8px;">
+            <button id="btnSyncAI" class="btn btn-primary btn-sm">Design → 3D Mockup (AI)</button>
+            <label class="btn btn-sm" style="margin:0;">
+              Upload Design
+              <input id="artUpload" type="file" accept="image/*" style="display:none;" />
+            </label>
+          </div>
+          <div class="checkbox-row" style="margin-top:6px;justify-content:space-between;">
+            <label><input type="checkbox" id="boxLiveSyncAI" checked /> Auto-Update from Illustrator</label>
+            <label><input type="checkbox" id="wireframeToggle" /> Wireframe</label>
+            <button id="btnClearArt" class="btn btn-sm" style="padding:3px 7px;">Clear Artwork</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: 3D MOCKUP & VIDEO DOWNLOAD CENTER -->
+      <section id="tab-export" class="tab-pane">
+        <div class="card">
+          <div class="card-title">3D Mockup Downloads</div>
+          <div class="grid-2">
+            <button id="btnExportPNG" class="btn btn-primary">HD PNG (1600×1600)</button>
+            <button id="btnExportMultiPNG" class="btn">4-Angle PNG Pack</button>
+          </div>
+          <div class="grid-2" style="margin-top:8px;">
+            <button id="btnExportOBJ" class="btn">3D Model (.OBJ for Blender)</button>
+            <button id="btnExport3DHTML" class="btn">Client 3D Viewer (.HTML)</button>
+          </div>
+          <p style="color:#94a3b8;font-size:10.5px;margin-top:8px;">
+            Tip: Switch Background to <b>Transparent</b> in Tab 2 before downloading PNGs for clean e-commerce / Photoshop mockups.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">3D Mockup Video Export</div>
+          <div class="field">
+            <label>Animation Style</label>
+            <select id="vidAnim">
+              <option value="turntable" selected>360° Turntable Spin</option>
+              <option value="fold_assemble">Flat Dieline → Fold & Assemble</option>
+              <option value="hero_orbit">Cinematic Hero Orbit</option>
+            </select>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Aspect Ratio</label>
+              <select id="vidAspect">
+                <option value="1:1" selected>1:1 Square (720×720)</option>
+                <option value="16:9">16:9 Landscape (960×540)</option>
+                <option value="9:16">9:16 Reels / Shorts (540×960)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Duration</label>
+              <select id="vidDuration">
+                <option value="4">4 Seconds</option>
+                <option value="6" selected>6 Seconds</option>
+                <option value="8">8 Seconds</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="vidProgress" class="progress-bar" style="margin:10px 0;">
+            <div id="vidProgressFill" class="progress-fill"></div>
+          </div>
+
+          <button id="btnExportVideo" class="btn btn-primary" style="width:100%;margin-top:4px;">
+            Render & Download 3D Video (.webm)
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 4: PRO PACKAGING & ILLUSTRATOR QUICK TOOLS (ORGANIZED SUB-TABS v17.7) -->
+      <section id="tab-tools" class="tab-pane">
+        <div class="subtabs" id="proSubtabs">
+          <button type="button" class="subtab-btn active" data-pro="pro-quick"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Quick AI</span></button>
+          <button type="button" class="subtab-btn" data-pro="pro-codes"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M18 18h3v3h-3z"/></svg><span>QR / Bar</span></button>
+          <button type="button" class="subtab-btn" data-pro="pro-sizes"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg><span>Sizes</span></button>
+          <button type="button" class="subtab-btn" data-pro="pro-cal"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Calendar</span></button>
+          <button type="button" class="subtab-btn" data-pro="pro-print"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span>Print</span></button>
+        </div>
+
+        <!-- SUB-TAB 1: QUICK AI ACTIONS & COMPLIANCE ICONS -->
+        <div id="pro-quick" class="pro-section active">
+          <div class="card accent-card">
+            <div class="card-title">
+              <span>1-Click Clipping Mask &amp; Layout</span>
+              <span style="text-transform:none;color:#3bcdca;font-weight:500;">Illustrator Pro</span>
+            </div>
+            <div class="grid-2">
+              <button id="btnClipMask" class="btn btn-primary btn-sm"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2"/><circle cx="15" cy="15" r="6"/></svg><span>Clip into Shape</span></button>
+              <button id="btnReleaseMask" class="btn btn-sm"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg><span>Release Mask</span></button>
+            </div>
+            <div class="grid-2" style="margin-top:7px;">
+              <button id="btnClipBleed" class="btn btn-sm"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg><span>Clip to Bleed</span></button>
+              <button id="btnSwatchCard" class="btn btn-sm"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg><span>Color Swatches</span></button>
+            </div>
+            <div class="grid-3" style="margin-top:7px;">
+              <button id="btnCenterAB" class="btn btn-sm">Center Artboard</button>
+              <button id="btnFitAB" class="btn btn-sm">Fit to Artboard</button>
+              <button id="btnSafeGuides" class="btn btn-sm">5mm Safe Guides</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Insert Vector Packaging Icons (Illustrator)</div>
+            <div class="grid-4">
+              <button class="btn btn-sm icon-btn" data-icon="fragile">Fragile</button>
+              <button class="btn btn-sm icon-btn" data-icon="keep_dry">Keep Dry</button>
+              <button class="btn btn-sm icon-btn" data-icon="this_side_up">Side Up</button>
+              <button class="btn btn-sm icon-btn" data-icon="recycle">Recycle</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 2: VECTOR QR CODE & BARCODE STUDIO -->
+        <div id="pro-codes" class="pro-section">
+          <div class="card accent-card">
+            <div class="card-title">
+              <span>Vector QR Code Maker (100% Scannable)</span>
+              <span style="text-transform:none;color:#3bcdca;font-weight:500;">100% K Vector</span>
+            </div>
+            <div class="field">
+              <label>URL, WhatsApp, Wi-Fi, Phone or Text</label>
+              <input id="qrValue" type="text" value="https://design360n.com" placeholder="https://yourwebsite.com or text..." />
+            </div>
+            <div class="grid-4" style="margin-bottom:7px;">
+              <button type="button" class="btn btn-sm qr-preset" data-qr="https://design360n.com">Website</button>
+              <button type="button" class="btn btn-sm qr-preset" data-qr="https://wa.me/8801700000000">WhatsApp</button>
+              <button type="button" class="btn btn-sm qr-preset" data-qr="WIFI:T:WPA;S:MyWiFi;P:12345678;;">Wi-Fi</button>
+              <button type="button" class="btn btn-sm qr-preset" data-qr="tel:+8801700000000">Phone</button>
+            </div>
+            <div class="grid-3">
+              <div class="field"><label>Size (mm)</label><input id="qrSizeMm" type="number" min="10" max="200" value="30" /></div>
+              <div class="field">
+                <label>Style</label>
+                <select id="qrStyle">
+                  <option value="square" selected>Classic Square</option>
+                  <option value="rounded">Rounded Dots</option>
+                </select>
+              </div>
+              <div class="field"><label>Color</label><input id="qrColor" type="color" value="#000000" style="height:28px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+            </div>
+            <div id="qrPreview" style="background:#ffffff;border-radius:7px;padding:8px;height:132px;display:flex;align-items:center;justify-content:center;margin:8px 0;"></div>
+            <div class="grid-2">
+              <button id="btnInsertQR" class="btn btn-primary btn-sm">Insert Vector QR in AI</button>
+              <button id="btnDownloadQR" class="btn btn-sm">Download QR SVG</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Vector Barcode Generator (100% K Print-Safe)</div>
+            <div class="grid-2">
+              <div class="field">
+                <label>Format</label>
+                <select id="bcFormat">
+                  <option value="ean13" selected>EAN-13 (Retail)</option>
+                  <option value="code39">Code 39 (Alphanumeric SKU)</option>
+                </select>
+              </div>
+              <div class="field"><label>Code / SKU</label><input id="bcValue" type="text" value="894123456789" /></div>
+            </div>
+            <div id="bcPreview" class="preview-box short" style="margin:8px 0;"></div>
+            <div class="grid-2">
+              <button id="btnInsertBarcode" class="btn btn-primary btn-sm">Insert Vector in AI</button>
+              <button id="btnDownloadBarcode" class="btn btn-sm">Download SVG</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 3: ALL DESIGN ARTBOARD SIZES (36 PRESETS) -->
+        <div id="pro-sizes" class="pro-section">
+          <div class="card accent-card">
+            <div class="card-title">
+              <span>All Design Artboard Sizes (36 Presets)</span>
+              <span style="text-transform:none;color:#3bcdca;font-weight:500;">Print • Social • Merch</span>
+            </div>
+            <div class="field">
+              <label>Select Standard Size (Print, Social Media, Apparel &amp; Merch)</label>
+              <select id="designSizeSelect"></select>
+            </div>
+            <div id="designSizeMeta" style="font-size:11px;color:#3bcdca;background:#080d19;border:1px solid rgba(148,163,184,0.16);border-radius:6px;padding:7px 9px;margin-bottom:9px;">
+              CMYK / RGB • Auto Bleed &amp; Safe Guides
+            </div>
+            <button id="btnCreateDesignArtboard" class="btn btn-primary" style="width:100%;">
+              Create Artboard in Adobe Illustrator
+            </button>
+          </div>
+        </div>
+
+
+        <!-- SUB-TAB 5: UNIVERSAL VECTOR CALENDAR MAKER (v17.7) -->
+        <div id="pro-cal" class="pro-section">
+          <div class="card accent-card">
+            <div class="card-title">
+              <span>Universal Vector Calendar Studio</span>
+              <span style="text-transform:none;color:#3bcdca;font-weight:500;">Unicode + ANSI • Any Grid</span>
+            </div>
+
+                        <div class="field" style="margin-bottom:6px;">
+              <label>Calendar Layout Style (Bangla Calendar Pro)</label>
+              <select id="calLayoutMode">
+                <option value="classic_dual" selected>Layout 1: Classic Dual-Date (7 Col • Eng + Bangla Tarikh)</option>
+                <option value="royal_14">Layout 2: Royal Wide (14 Col • 2 Weeks/Row + Bangla Tarikh)</option>
+                <option value="plain_7">Layout 3: Clean Single-Date (7 Col • No Dual Sub-Date)</option>
+              </select>
+            </div>
+            <div class="grid-2" style="margin-bottom:6px;">
+              <div class="field" style="margin-bottom:0;">
+                <label>Language / Encoding</label>
+                <select id="calLangMode">
+                  <option value="en_bn_uni" selected>English + বাংলা Unicode (Dual)</option>
+                  <option value="en_bn_ansi">English + বাংলা ANSI / Bijoy (Dual)</option>
+                  <option value="bn_unicode">সম্পূর্ণ বাংলা Unicode (Nirmala / Hind)</option>
+                  <option value="bn_ansi">সম্পূর্ণ বাংলা ANSI / Bijoy (SutonnyMJ)</option>
+                  <option value="en">English Only</option>
+                </select>
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label>Date Box / Grid Style</label>
+                <select id="calBoxMode">
+                  <option value="none" selected>1. No Box (Clean Open)</option>
+                  <option value="grid">2. Full Table Grid (Square)</option>
+                  <option value="sq_cells">3. Individual Square Boxes</option>
+                  <option value="cells">4. Individual Rounded Boxes</option>
+                  <option value="circles">5. Circle Date Badges</option>
+                  <option value="filled_cells">6. Filled Soft-Tint Boxes</option>
+                  <option value="rows">7. Horizontal Rows Only</option>
+                  <option value="cols">8. Vertical Columns Only</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom:6px;">
+              <div class="field" style="margin-bottom:0;"><label>Year</label><input id="calYear" type="number" min="2000" max="2099" value="2026" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Cols</label><input id="calCols" type="number" min="1" max="6" value="3" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Rows</label><input id="calRows" type="number" min="1" max="12" value="4" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Months</label><input id="calMonthCount" type="number" min="1" max="12" value="12" /></div>
+            </div>
+
+            <div class="grid-2" style="margin-bottom:6px;">
+              <div class="field" style="margin-bottom:0;">
+                <label>Start Month</label>
+                <select id="calMonth">
+                  <option value="0" selected>January / জানুয়ারি</option><option value="1">February / ফেব্রুয়ারি</option><option value="2">March / মার্চ</option>
+                  <option value="3">April / এপ্রিল</option><option value="4">May / মে</option><option value="5">June / জুন</option>
+                  <option value="6">July / জুলাই</option><option value="7">August / আগস্ট</option><option value="8">September / সেপ্টেম্বর</option>
+                  <option value="9">October / অক্টোবর</option><option value="10">November / নভেম্বর</option><option value="11">December / ডিসেম্বর</option>
+                </select>
+              </div>
+              <div class="field" style="margin-bottom:0;"><label>Header Style</label><select id="calStyle"></select></div>
+            </div>
+
+            <div class="grid-3" style="margin-bottom:6px;">
+              <div class="field" style="margin-bottom:0;"><label>Size Preset</label><select id="calSizePreset"></select></div>
+              <div class="field" style="margin-bottom:0;"><label>Width (mm)</label><input id="calWidthMm" type="number" min="40" max="1500" value="210" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Height (mm)</label><input id="calHeightMm" type="number" min="40" max="1500" value="297" /></div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:4px;margin:4px 0 4px;">
+              <input id="calFontFilter" type="text" placeholder="Search fonts (e.g. Sutonny, Li, Hind)..." style="flex:1;padding:3px 6px;font-size:10px;" />
+              <button type="button" id="btnCalLoadFonts" class="btn btn-sm" style="padding:3px 8px;font-size:10px;white-space:nowrap;">Sync Fonts</button>
+            </div>
+            <div class="grid-2" style="margin-bottom:5px;">
+              <div class="field" style="margin-bottom:0;"><label>1. Title / Month Font</label><select id="calTitleFont"></select></div>
+              <div class="field" style="margin-bottom:0;"><label>2. Weekday Font</label><select id="calDowFont"></select></div>
+            </div>
+            <div class="grid-2" style="margin-bottom:6px;">
+              <div class="field" style="margin-bottom:0;"><label>3. Big Date Font</label><select id="calFont"></select></div>
+              <div class="field" style="margin-bottom:0;"><label>4. Bangla Sub-Date Font</label><select id="calBnSubFont"></select></div>
+            </div>
+
+            <div class="grid-3" style="margin-bottom:6px;">
+              <div class="field" style="margin-bottom:0;">
+                <label>Week Start &amp; Wknd</label>
+                <div class="grid-2" style="gap:3px;">
+                  <select id="calWeekStart"><option value="0" selected>Sun</option><option value="1">Mon</option><option value="6">Sat</option></select>
+                  <select id="calWeekend"><option value="fri_sat" selected>Fri-Sat</option><option value="sat_sun">Sat-Sun</option><option value="fri_only">Fri</option><option value="sun_only">Sun</option></select>
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:0;"><label>Big Date pt (0=Auto)</label><input id="calBigPt" type="number" min="0" max="120" value="0" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Small pt (0=Auto)</label><input id="calSmallPt" type="number" min="0" max="60" value="0" /></div>
+            </div>
+            <div class="grid-3" style="margin-bottom:6px;">
+              <div class="field" style="margin-bottom:0;"><label>Accent</label><input id="calAccent" type="color" value="#0ea5e9" style="height:24px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Text</label><input id="calTextCol" type="color" value="#111827" style="height:24px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Weekend</label><input id="calWkndCol" type="color" value="#e11d48" style="height:24px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+            </div>
+
+            <div id="calPreview" class="preview-box" style="height:190px;background:#ffffff;padding:6px;margin:7px 0;"></div>
+
+            <div class="checkbox-row" style="margin-bottom:7px;">
+              <label><input id="calMonthBox" type="checkbox" /> Month Outer Card Box</label>
+              <label><input id="calUseActiveDoc" type="checkbox" /> Active Artboard</label>
+            </div>
+            <button id="btnGenCalAI" class="btn btn-primary" style="width:100%;margin-bottom:6px;">
+              Generate Editable Calendar in Illustrator (Live Text)
+            </button>
+            <div class="grid-3" style="margin-bottom:5px;">
+              <button id="btnCalFixBangla" class="btn btn-sm" title="Enable Show Indic Options & open Paragraph panel">1. Indic Fix</button>
+              <button id="btnCalSaveUniBase" class="btn btn-sm" title="Save selected fixed Bangla text so all future Unicode calendars work 100% auto!">2. Save Auto-Uni</button>
+              <button id="btnDlCalSVG" class="btn btn-sm">SVG</button>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;line-height:1.35;">
+              <b>Auto-Unicode Setup (1-Time):</b> Select any fixed Bangla text (Paragraph → <i>Middle Eastern &amp; South Asian Composer</i>) &amp; click <b>Save Auto-Uni</b>. After that, every Unicode calendar auto-fixes forever!
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 4: PRESS SHEET NESTING, PREFLIGHT & PRINT PDF -->
+        <div id="pro-print" class="pro-section">
+          <div class="card">
+            <div class="card-title">Press Sheet Nesting &amp; GSM Estimator</div>
+            <div class="grid-3">
+              <div class="field"><label>Press Sheet</label><select id="calcSheet"></select></div>
+              <div class="field"><label>Paper GSM</label><input id="calcGsm" type="number" min="80" max="1200" value="300" /></div>
+              <div class="field"><label>Order Qty</label><input id="calcQty" type="number" min="10" step="100" value="1000" /></div>
+            </div>
+            <div class="kpi-grid">
+              <div class="kpi-box"><div class="kpi-label">Fit Per Sheet (Up)</div><div id="kpiUp" class="kpi-val">—</div></div>
+              <div class="kpi-box"><div class="kpi-label">Sheets Needed</div><div id="kpiSheets" class="kpi-val">—</div></div>
+              <div class="kpi-box"><div class="kpi-label">Sheet Waste %</div><div id="kpiWaste" class="kpi-val">—</div></div>
+              <div class="kpi-box"><div class="kpi-label">Box Weight / Total</div><div id="kpiWeight" class="kpi-val">—</div></div>
+            </div>
+          </div>
+
+          <div class="card accent-card">
+            <div class="card-title">Pre-Press Preflight &amp; Print-Ready PDF</div>
+            <div class="grid-3">
+              <button id="btnPreflight" class="btn btn-sm">Run Preflight</button>
+              <button id="btnOutlineText" class="btn btn-sm">Outline Text</button>
+              <button id="btnPrintPDF" class="btn btn-primary btn-sm">Export Print PDF</button>
+            </div>
+            <div id="preflightOut" class="preflight-box">Click "Run Preflight" to audit Color Space (CMYK), live fonts, linked images, and spot dieline layers.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: PEN-TOOL STROKE AI & PURE VECTOR ICON STUDIO (v10.0) -->
+      <section id="tab-stroke" class="tab-pane">
+        <div class="card" style="border-color:rgba(59,205,202,0.45);">
+          <div class="card-title">
+            <span>1-Click Pen-Tool Stroke Icon Finder</span>
+            <span style="text-transform:none;color:#3bcdca;font-weight:500;">100% Free • Zero Defects</span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <input id="penIconQuery" type="text" placeholder="Search icon (e.g. globe, mail, home, lock, cart)..." style="flex:1;" />
+            <select id="penIconPack" style="width:98px;">
+              <option value="lucide,tabler,feather,iconoir" selected>All Packs</option>
+              <option value="lucide">Lucide</option>
+              <option value="tabler">Tabler</option>
+              <option value="feather">Feather</option>
+              <option value="iconoir">Iconoir</option>
+            </select>
+            <button id="btnPenIconSearch" class="btn btn-primary btn-sm">Search</button>
+          </div>
+          <div id="penIconResults" style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px;max-height:142px;overflow-y:auto;"></div>
+          <div id="penIconStatus" style="font-size:10px;color:#94a3b8;margin-top:5px;">
+            Click any icon above to insert pure hand-drawn Pen-Tool editable strokes directly into Illustrator.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Raster → Pen-Tool Editable Stroke Studio</span>
+            <span style="text-transform:none;color:#3bcdca;font-weight:500;">v10.0 Pen-Tool AI</span>
+          </div>
+          <div class="grid-2">
+            <button id="btnStrokeFolder" class="btn btn-primary btn-sm">Select Source Folder</button>
+            <button id="btnStrokeSingleTest" class="btn btn-sm">Test Single Image</button>
+            <input id="strokeSingleImg" type="file" accept="image/*" style="display:none;" />
+          </div>
+          <input id="strokeBrowserFolder" type="file" webkitdirectory multiple style="display:none;" />
+          <div id="strokeFolderInfo" style="font-size:10.5px;color:#94a3b8;margin-top:6px;word-break:break-all;">
+            No folder selected yet. Output files auto-save inside your Source Folder.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Pen-Tool &amp; Centerline Engine (v10.0)</div>
+          <div class="field">
+            <label>Vectorization Engine</label>
+            <select id="strokeEngine">
+              <option value="vec_to_stroke" selected>1. Image → Vector → Stroke (Free Offline Illustrator)</option>
+              <option value="gemini_pentool">2. AI Pen-Tool Redraw (Gemini Free API — Needs Free Key)</option>
+              <option value="exact_outline">3. Image → Vector (Free Offline 99.9% Exact Filled)</option>
+              <option value="vtracer_bw">4. VTracer Open-Source B&amp;W Spline (100% Free Local)</option>
+              <option value="vtracer_color">5. VTracer Open-Source Full Color (100% Free Local)</option>
+              <option value="cloud_ai">6. Cloud AI Vectorizer API (Recraft / Vectorizer.AI)</option>
+            </select>
+          </div>
+          <div id="geminiApiBox" style="display:none;margin-top:6px;padding:8px;background:#090e1a;border:1px solid rgba(59,205,202,0.35);border-radius:6px;">
+            <div class="grid-2">
+              <div class="field">
+                <label>Gemini Model (Free Tier)</label>
+                <select id="geminiModel">
+                  <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Free &amp; Fast)</option>
+                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (Max Precision)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Free Gemini API Key</label>
+                <input id="geminiApiKey" type="password" placeholder="Paste key from aistudio.google.com" />
+              </div>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:4px;">
+              Auto-crops each icon &amp; redraws it from scratch using minimal Pen-Tool anchors (circles, rects &amp; smooth cubic Beziers). Free key at aistudio.google.com/apikey.
+            </div>
+          </div>
+          <div id="cloudApiBox" style="display:none;margin-top:6px;padding:8px;background:#090e1a;border:1px solid rgba(59,205,202,0.28);border-radius:6px;">
+            <div class="grid-2">
+              <div class="field">
+                <label>AI Provider</label>
+                <select id="cloudProvider">
+                  <option value="recraft" selected>Recraft API (v3 Vectorize)</option>
+                  <option value="vectorizer_ai">Vectorizer.AI API</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>API Key (Saved Locally)</label>
+                <input id="cloudApiKey" type="password" placeholder="Paste API key (or ID:Secret)" />
+              </div>
+            </div>
+          </div>
+          <div class="grid-2" style="margin-top:6px;">
+            <div class="field">
+              <label>Output Format (Auto-Save)</label>
+              <select id="strokeFormat">
+                <option value="both" selected>Both .AI + .SVG</option>
+                <option value="ai">Adobe Illustrator (.AI) Only</option>
+                <option value="svg">Editable Stroke (.SVG) Only</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Stroke Weight (0 = Auto Match)</label>
+              <input id="strokeWeight" type="number" step="0.5" min="0" max="24" value="0" />
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-top:6px;">
+            <div class="field">
+              <label>Threshold: <span id="strokeThreshVal">165</span></label>
+              <input id="strokeThresh" type="range" min="40" max="240" value="165" />
+            </div>
+            <div class="field">
+              <label>Curve Smoothness: <span id="strokeSmoothVal">1.5</span></label>
+              <input id="strokeSmooth" type="range" min="0.5" max="4.0" step="0.1" value="1.5" />
+            </div>
+          </div>
+
+          <div class="grid-3" style="margin-top:6px;">
+            <div class="field">
+              <label>Icon Group Gap</label>
+              <input id="strokeGap" type="number" min="2" max="80" value="14" />
+            </div>
+            <div class="field">
+              <label>Stroke Color</label>
+              <input id="strokeColor" type="color" value="#000000" style="height:28px;width:100%;border:none;background:transparent;cursor:pointer;" />
+            </div>
+            <div class="field" style="justify-content:center;">
+              <label style="display:flex;align-items:center;gap:5px;color:#f1f5f9;cursor:pointer;margin-top:12px;">
+                <input id="strokeInvert" type="checkbox" /> Invert Ink
+              </label>
+            </div>
+          </div>
+          <div class="checkbox-row">
+            <label><input id="strokeKeepOpen" type="checkbox" /> Keep generated .AI docs open in Illustrator</label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Editable Stroke Vector Preview</span>
+            <span id="strokePreviewStats" style="text-transform:none;color:#3bcdca;"></span>
+          </div>
+          <div id="strokePreviewBox" class="preview-box" style="background:#ffffff;height:168px;"></div>
+          <div class="grid-2" style="margin-top:8px;">
+            <button id="btnStrokeSingleAI" class="btn btn-primary btn-sm">Open in Illustrator</button>
+            <button id="btnStrokeSingleSVG" class="btn btn-sm">Save Preview SVG</button>
+          </div>
+          <button id="btnPenToolRebuild" class="btn btn-primary btn-sm" style="width:100%;margin-top:6px;">
+            Pen-Tool Rebuild Selected (4-Pt Circles • 0/45/90° Snap • Smooth Beziers)
+          </button>
+          <div class="grid-3" style="margin-top:6px;">
+            <button id="btnPolishLayer" class="btn btn-sm">Polish Circles/Lines</button>
+            <button id="btnUnifyStrokes" class="btn btn-sm">Unify Stroke Pt</button>
+            <button id="btnFillsToStrokes" class="btn btn-sm">Fills → Strokes</button>
+          </div>
+          <button id="btnVecToCenterStroke" class="btn btn-sm" style="width:100%;margin-top:6px;">
+            Selected Filled Vector → Auto Centerline Stroke
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Automatic Batch Folder Processor</div>
+          <button id="btnStrokeStartBatch" class="btn btn-primary" style="width:100%;">
+            Start Auto Batch Convert (Save in Source Folder)
+          </button>
+          <div id="strokeProgress" class="progress-bar" style="margin-top:8px;">
+            <div id="strokeProgressFill" class="progress-fill"></div>
+          </div>
+          <div id="strokeLog" class="log-box">Ready. Use Pen-Tool Icon Finder above, or load a raster image/folder for AI Pen-Tool Redraw.</div>
+        </div>
+      </section>
+
+      <!-- TAB 6: LIVE 2D DIELINE <-> 360° 3D T-SHIRT & BOTTLE STUDIO (v17.7) -->
+      <section id="tab-apparel" class="tab-pane">
+        <!-- MODE SWITCH: T-SHIRT STUDIO vs BOTTLE & TUMBLER STUDIO -->
+        <div class="grid-2">
+          <button id="btnModeTShirt" class="btn btn-primary btn-sm">T-Shirt Studio (12 Types × XS–3XL)</button>
+          <button id="btnModeBottle" class="btn btn-sm">Bottle &amp; Tumbler Studio (8 Types)</button>
+        </div>
+
+        <!-- TOP: LIVE 360° 3D MOCKUP (SOLID CLOSED-TOP T-SHIRT OR 3D BOTTLE) -->
+        <div class="card" style="padding:8px;">
+          <div class="card-title">
+            <span>Live 360° 3D Mockup (Auto-Syncs with Illustrator)</span>
+            <span style="text-transform:none;color:#3bcdca;font-weight:500;">Drag Orbit • Scroll Zoom</span>
+          </div>
+          <div class="preview-box tall" style="height:245px;padding:0;">
+            <canvas id="apparel3dCanvas" width="460" height="245" style="width:100%;height:100%;cursor:grab;display:block;"></canvas>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px;">
+            <button class="btn btn-sm" style="padding:4px 2px;font-size:10px;" data-apparel-cam="front">Front</button>
+            <button class="btn btn-sm" style="padding:4px 2px;font-size:10px;" data-apparel-cam="back">Back</button>
+            <button class="btn btn-sm" style="padding:4px 2px;font-size:10px;" data-apparel-cam="right">Right</button>
+            <button class="btn btn-sm" style="padding:4px 2px;font-size:10px;" data-apparel-cam="left">Left</button>
+            <button class="btn btn-sm" style="padding:4px 2px;font-size:10px;" data-apparel-cam="collar">Top/Cap</button>
+            <button class="btn btn-sm" style="padding:4px 2px;font-size:10px;" data-apparel-cam="hero">3/4 Hero</button>
+          </div>
+        </div>
+
+        <!-- BOTTOM: LIVE INTERACTIVE 2D DIELINE WORKSPACE -->
+        <div class="card" style="padding:8px;border-color:rgba(59,205,202,0.45);">
+          <div class="card-title">
+            <span>Interactive 2D Dieline &amp; Illustrator Live Bridge</span>
+            <span style="text-transform:none;color:#3bcdca;font-weight:500;">Edit Here or in AI → Live 3D!</span>
+          </div>
+
+          <div id="tshirtControlsWrap" class="grid-2" style="margin-bottom:6px;">
+            <div class="field" style="margin-bottom:0;"><label>T-Shirt Style (12 Types)</label><select id="apparelType"></select></div>
+            <div class="field" style="margin-bottom:0;"><label>Graded Size (XS–3XL)</label><select id="apparelSizeGrade"></select></div>
+          </div>
+
+          <div id="bottleControlsWrap" class="grid-2" style="display:none;margin-bottom:6px;">
+            <div class="field" style="margin-bottom:0;"><label>Bottle / Tumbler Type (8 Styles)</label><select id="bottleType"></select></div>
+            <div class="field" style="margin-bottom:0;"><label>Volume / Size (250ml–1L)</label><select id="bottleVolume"></select></div>
+          </div>
+
+          <div id="apparelSizeSpecs" style="font-size:10px;color:#3bcdca;margin-bottom:5px;font-weight:600;"></div>
+
+          <div class="preview-box" style="height:245px;padding:0;background:#111622;">
+            <canvas id="apparel2dCanvas" width="440" height="245" style="width:100%;height:100%;cursor:crosshair;display:block;"></canvas>
+          </div>
+
+          <div style="display:flex;gap:5px;margin-top:6px;">
+            <select id="apparelUploadZone" style="width:118px;">
+              <option value="front" selected>Front / Center</option>
+              <option value="back">Back Panel</option>
+              <option value="rsleeve">Right Sleeve</option>
+              <option value="lsleeve">Left Sleeve</option>
+              <option value="full">Full 360° Wrap</option>
+            </select>
+            <button id="btnApparelUpload" class="btn btn-primary btn-sm" style="flex:1;">+ Image</button>
+            <button id="btnDielineAddText" class="btn btn-sm">+ Text</button>
+            <button id="btnDielineAddBlock" class="btn btn-sm">+ Stripe</button>
+            <input id="apparelUploadInput" type="file" accept="image/*" style="display:none;" />
+          </div>
+          <div style="display:flex;gap:5px;margin-top:5px;">
+            <input id="apparelQuickText" type="text" value="DESIGN360N" placeholder="Text to add..." style="flex:1;" />
+            <input id="apparelQuickColor" type="color" value="#f8f5ef" style="width:34px;height:28px;border:none;background:transparent;cursor:pointer;" />
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:5px;">
+            <button id="btnLayerDup" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Duplicate</button>
+            <button id="btnLayerFlip" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Flip H</button>
+            <button id="btnLayerRot" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Rotate 45°</button>
+            <button id="btnLayerDel" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Delete</button>
+            <button id="btnApparelClearArt" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Clear All</button>
+          </div>
+
+          <div class="grid-2" style="margin-top:7px;">
+            <button id="btnApparelGenPattern" class="btn btn-primary btn-sm">Open Graded T-Shirt Dieline in AI</button>
+            <button id="btnApparelSyncAI" class="btn btn-primary btn-sm">Sync AI Artboard → 3D Now</button>
+          </div>
+          <div class="checkbox-row" style="margin-top:5px;">
+            <label><input id="apparelLiveSyncAI" type="checkbox" checked /> Auto-Update 3D Mockup as you work on Illustrator Artboard</label>
+          </div>
+          <div id="apparelStatus" style="font-size:10.5px;color:#94a3b8;margin-top:4px;">
+            Ready. Open Dieline in Illustrator and draw on ARTWORK_ZONE — 3D Mockup updates automatically!
+          </div>
+        </div>
+
+        <!-- APPEARANCE, MATERIAL, BACKDROP & EXPORTS -->
+        <div class="card">
+          <div class="card-title">Colors, Material Finish, Backdrop &amp; Export</div>
+
+          <div id="tshirtLookBox">
+            <div class="grid-3">
+              <div class="field"><label>Body</label><input id="apparelBodyColor" type="color" value="#7a1c1c" style="height:26px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+              <div class="field"><label>Sleeves</label><input id="apparelSleeveColor" type="color" value="#7a1c1c" style="height:26px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+              <div class="field"><label>Collar Rib</label><input id="apparelCollarColor" type="color" value="#5e1515" style="height:26px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+            </div>
+            <div class="checkbox-row">
+              <label><input id="apparelSplitSleeve" type="checkbox" /> Contrast Sleeves</label>
+              <label><input id="apparelShowLabel" type="checkbox" checked /> Neck Label</label>
+            </div>
+            <div class="grid-2" style="margin-top:6px;">
+              <div class="field">
+                <label>Fabric Material</label>
+                <select id="apparelMaterial">
+                  <option value="cotton" selected>100% Cotton</option>
+                  <option value="heavyweight">Heavyweight Jersey (260 GSM)</option>
+                  <option value="mesh">Sports Mesh</option>
+                  <option value="fleece">Soft Fleece</option>
+                  <option value="silk">Satin Gloss</option>
+                </select>
+              </div>
+              <div class="field"><label>Neck Label Brand</label><input id="apparelLabelBrand" type="text" value="DESIGN360N" /></div>
+            </div>
+            <div class="grid-2" style="margin-top:4px;">
+              <div class="field"><label>Wrinkles</label><input id="apparelWrinkles" type="range" min="0" max="1.2" step="0.05" value="0.55" /></div>
+              <div class="field"><label>Fold Shadows</label><input id="apparelFoldShadow" type="range" min="0" max="1.2" step="0.05" value="0.65" /></div>
+            </div>
+            <div class="field" style="margin-top:4px;"><label>Care / Origin</label><input id="apparelLabelMeta" type="text" value="100% COTTON • MADE IN BANGLADESH" /></div>
+          </div>
+
+          <div id="bottleLookBox" style="display:none;">
+            <div class="grid-3">
+              <div class="field"><label>Bottle Body</label><input id="bottleBodyColor" type="color" value="#16181d" style="height:26px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+              <div class="field"><label>Cap / Lid</label><input id="bottleCapColor" type="color" value="#f4f2ee" style="height:26px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+              <div class="field"><label>Neck Ring</label><input id="bottleRingColor" type="color" value="#c8a996" style="height:26px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+            </div>
+            <div class="field" style="margin-top:6px;">
+              <label>Bottle Surface Finish</label>
+              <select id="bottleFinish">
+                <option value="matte" selected>Matte Powder-Coat (Owala Style)</option>
+                <option value="glossy">Glossy PET / Ceramic</option>
+                <option value="metallic">Brushed Stainless / Aluminum</option>
+                <option value="glass">Clear / Frosted Glass</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-top:6px;">
+            <div class="field">
+              <label>Studio Backdrop</label>
+              <select id="apparelBackdrop">
+                <option value="blinds" selected>Studio Blinds Shadow</option>
+                <option value="white">Clean White Studio</option>
+                <option value="dark">Obsidian Dark</option>
+                <option value="gray">Soft Gray</option>
+                <option value="transparent">Transparent PNG</option>
+              </select>
+            </div>
+            <div class="field" style="justify-content:center;">
+              <div class="checkbox-row" style="margin-top:10px;">
+                <label><input id="apparelShowDemo" type="checkbox" checked /> Demo Art</label>
+                <label><input id="apparelAutoRotate" type="checkbox" /> Auto-Spin</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-3" style="margin-top:6px;">
+            <button id="btnApparelExpPNG" class="btn btn-primary btn-sm">HD 1600px PNG</button>
+            <button id="btnApparelExpVideo" class="btn btn-sm">360° Video</button>
+            <button id="btnApparelExpOBJ" class="btn btn-sm">3D .OBJ</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/CSInterface.js"></script>
+  <script src="js/dieline-engine.js"></script>
+  <script src="js/mockup3d.js"></script>
+  <script src="js/pro-tools.js"></script>
+  <script src="js/qr-engine.js"></script>
+  <script src="js/calendar-engine.js"></script>
+  <script src="js/stroke-tracer.js"></script>
+  <script src="js/license-gate.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/update-check.js"></script>
+  <script src="js/stroke-ui.js"></script>
+  <script src="js/apparel3d.js"></script>
+  <script src="js/apparel-ui.js"></script>
+</body>
+</html>
