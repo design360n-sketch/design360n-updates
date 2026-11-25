@@ -416,3 +416,7 @@ select, input[type="number"], input[type="text"], input[type="password"] {
 /* Home footer: small manual update check. */
 .home-foot { margin-top: 12px; text-align: center; }
 .home-foot .btn { opacity: .8; }
+
+/* Workstation logo mark: isometric cube inside the brand tiles. */
+.brand-icon svg { width: 18px; height: 18px; display: block; }
+.auth-icon svg { width: 26px; height: 26px; display: block; }
