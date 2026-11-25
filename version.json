@@ -1,6 +1,6 @@
 {
-  "version": "2.80",
-  "notes": "Cube logo redrawn: high-contrast faces (white top, mint left, dark right) so it reads as a cube at panel size",
+  "version": "2.81",
+  "notes": "Cube logo made bigger: tighter viewBox + larger svg in the tile (logo 30px, auth 40px), thinner stroke so the faces dominate",
   "baseUrl": "https://raw.githubusercontent.com/design360n-sketch/design360n-updates/main/",
   "downloadUrl": "https://github.com/design360n-sketch/design360n-updates/releases/latest",
   "files": [
