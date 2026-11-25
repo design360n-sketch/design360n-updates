@@ -73,10 +73,13 @@ body {
   border-color: rgba(245, 158, 11, 0.35);
 }
 
-/* Sticky 5-Tab Main Navigation Bar */
+/* Main tab navigation — HIDDEN by design (v17.7.4): tools are reached only
+ * via Home cards, Back returns Home. The <nav> stays in the DOM (hidden, not
+ * removed) because app.js (initTabs) and easy-ui.js drive navigation by
+ * clicking its buttons programmatically. */
 .tabs {
+  display: none !important;
   position: sticky; top: 47px; z-index: 25;
-  display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   padding: 5px 6px; gap: 4px;
@@ -397,3 +400,7 @@ select, input[type="number"], input[type="text"], input[type="password"] {
   padding: 7px 12px; min-height: 34px; cursor: pointer;
 }
 .back-btn:hover { background: rgba(59, 205, 202, 0.08); }
+
+/* Home footer: small manual update check. */
+.home-foot { margin-top: 12px; text-align: center; }
+.home-foot .btn { opacity: .8; }

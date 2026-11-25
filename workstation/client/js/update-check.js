@@ -6,7 +6,7 @@
  * gate still protects use — without a valid key the panel stays locked.
  * Checks on load, then every 5 minutes. Silent when offline. */
 (function () {
-  var PANEL_VERSION = "17.7.3";
+  var PANEL_VERSION = "17.7.4";
   var UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/design360n-sketch/design360n-updates/main/version-workstation.json";
   var pendingUpdate = null;
   var $ = function (id) { return document.getElementById(id); };
@@ -39,16 +39,22 @@
     var b = $("updBanner");
     if (b) b.style.display = "none";
   }
+  var hostStatusDefault = "Illustrator CEP";
+  function setHostStatus(t) { var hs = $("hostStatus"); if (hs) hs.textContent = t; }
+  function restoreHostStatus() { setTimeout(function () { setHostStatus(hostStatusDefault); }, 4000); }
   function checkForUpdates(manual) {
     if (!UPDATE_MANIFEST_URL) return;
-    fetch(UPDATE_MANIFEST_URL, { cache: "no-store" })
+    // Cache-buster: GitHub raw caches ~5 min — a fresh timestamp makes every check see a just-published version at once.
+    var url = UPDATE_MANIFEST_URL + (UPDATE_MANIFEST_URL.indexOf("?") === -1 ? "?" : "&") + "t=" + Date.now();
+    if (manual) setHostStatus("Checking for updates\u2026");
+    fetch(url, { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (m) {
-        if (!m || !m.version || !m.files) return;
-        if (cmpVer(m.version, PANEL_VERSION) > 0) showUpdateBanner(m);
-        else hideUpdateBanner();
+        if (!m || !m.version || !m.files) { if (manual) { setHostStatus("Update check failed"); restoreHostStatus(); } return; }
+        if (cmpVer(m.version, PANEL_VERSION) > 0) { showUpdateBanner(m); if (manual) setHostStatus("Update available: v" + m.version); }
+        else { hideUpdateBanner(); if (manual) { setHostStatus("You are up to date (v" + PANEL_VERSION + ")"); restoreHostStatus(); } }
       })
-      .catch(function () { /* offline or manifest missing: stay silent */ });
+      .catch(function () { if (manual) { setHostStatus("Update check failed"); restoreHostStatus(); } /* auto: stay silent */ });
   }
   function applyUpdate() {
     var m = pendingUpdate;
@@ -96,6 +102,7 @@
   }
   if ($("updNowBtn")) $("updNowBtn").addEventListener("click", applyUpdate);
   if ($("updDismissBtn")) $("updDismissBtn").addEventListener("click", hideUpdateBanner);
+  if ($("updCheckBtn")) $("updCheckBtn").addEventListener("click", function () { try { checkForUpdates(true); } catch (e) {} });
   try { checkForUpdates(); } catch (e) {}
-  setInterval(function () { try { checkForUpdates(); } catch (e2) {} }, 300000);
+  setInterval(function () { try { checkForUpdates(); } catch (e2) {} }, 60000);
 })();
