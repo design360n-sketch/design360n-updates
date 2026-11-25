@@ -178,14 +178,22 @@
         var widthCurve = 1.0 - 0.08 * Math.sin(tv * Math.PI) * (1.0 - (spec.waistTaper - 0.82) * 3.0);
         if (tv < 0.16) widthCurve *= (0.96 + 0.04 * (tv / 0.16));
         if (tv > 0.82) widthCurve *= (1.0 + 0.03 * ((tv - 0.82) / 0.18));
-        var rx = halfW * widthCurve;
-        var rz = 0.30 * spec.bodyW + (isFront ? 0.08 * Math.sin(Math.min(1, tv * 1.5) * Math.PI) * Math.max(0, cosA) : 0.04 * Math.sin(tv * Math.PI));
+        // Organic armhole & shoulder transition so sleeves fuse seamlessly with torso
+        var armZone = Math.exp(-Math.pow((tv - 0.17) / 0.16, 2.0)) * Math.pow(Math.abs(sinA), 2.2);
+        var rx = halfW * widthCurve * (1.0 + 0.055 * armZone);
+        var chestCurve = isFront
+          ? (0.085 * Math.sin(Math.min(1, tv * 1.45) * Math.PI) * Math.pow(Math.max(0, cosA), 0.85))
+          : (0.045 * Math.sin(tv * Math.PI) * Math.pow(Math.max(0, -cosA), 0.85));
+        var rz = 0.285 * spec.bodyW + chestCurve + 0.025 * armZone;
 
-        var fold = 0.016 * (0.2 + 0.8 * tv) * (Math.sin(ang * 5.0 + tv * 1.2) + 0.5 * Math.cos(ang * 9.0 - tv * 0.8));
-        var x = sinA * (rx + fold);
-        var z = cosA * (rz + fold);
+        // Soft natural gravity drape folds (stronger near lower hem, smooth on chest)
+        var foldAmp = 0.012 * Math.pow(tv, 1.35);
+        var fold = foldAmp * (Math.sin(ang * 4.0 + tv * 0.9) + 0.45 * Math.cos(ang * 7.0 - tv * 0.6));
+        var hemLip = (tv > 0.95) ? (0.006 * Math.sin(((tv - 0.95) / 0.05) * Math.PI)) : 0.0;
+        var x = sinA * (rx + fold + hemLip);
+        var z = cosA * (rz + fold + hemLip);
 
-        var shoulderDrop = Math.pow(Math.abs(sinA), 1.4) * 0.16 * (1 - tv);
+        var shoulderDrop = Math.pow(Math.abs(sinA), 1.55) * 0.155 * Math.pow(1 - tv, 1.15);
         var neckCarve = 0;
         if (Math.abs(sinA) < 0.42) {
           var nr = 1.0 - Math.abs(sinA) / 0.42;
@@ -314,41 +322,80 @@
       idx.push(torsoGrid[segV][bi], botCenter, torsoGrid[segV][bi + 1]);
     }
 
-    // F) SCULPTED SLEEVES WITH CLOSED CUFF DEPTH
+    // F) SEAMLESS ANATOMICAL SLEEVES (Welded Shoulder Cap -> Gravity Drape -> Stitched Cuff)
     function buildSleeve(side) {
       if (spec.sleeveLen <= 0.01) return;
-      var sSegL = 16, sSegR = 24, sGrid = [];
+      var sSegL = 22, sSegR = 28, sGrid = [];
       var reg = (side < 0) ? UV_REGIONS.rightSleeve : UV_REGIONS.leftSleeve;
-      var startX = side * (halfW * 0.84), startY = topY - 0.30, angleDown = spec.sleeveDrop;
+
+      // Embed sleeve root deeply inside the upper shoulder/armhole so there is ZERO gap or step!
+      var isLong = (spec.id === "longsleeve" || spec.id === "hoodie");
+      var rootEmbed = halfW * 0.34;
+      var startX = side * (halfW - rootEmbed);
+      var shoulderTopY = topY - 0.145;
+      var baseRadY = Math.max(spec.sleeveRad * 1.18, 0.255 * spec.bodyW);
+      var baseRadZ = Math.max(spec.sleeveRad * 1.10, 0.265 * spec.bodyW);
+      var startY = shoulderTopY - baseRadY * 0.88;
+      var totalLen = spec.sleeveLen + rootEmbed * 0.88;
+      var angleMax = spec.sleeveDrop;
+
+      // Quadratic smooth centerline: flows horizontally out of shoulder dome, then drapes down with gravity
+      var p0x = startX, p0y = startY;
+      var p1x = startX + side * (totalLen * 0.48), p1y = startY - Math.sin(angleMax) * (totalLen * 0.22);
+      var p2x = startX + side * Math.cos(angleMax) * totalLen, p2y = startY - Math.sin(angleMax) * totalLen - 0.045;
 
       for (var sl = 0; sl <= sSegL; sl++) {
-        var tl = sl / sSegL, srow = [], dist = tl * spec.sleeveLen;
-        var axisX = startX + side * Math.cos(angleDown) * dist;
-        var axisY = startY - Math.sin(angleDown) * dist - 0.05 * tl * tl;
-        var axisZ = -0.02 * tl;
-        var rad = (spec.id === "longsleeve" || spec.id === "hoodie")
-          ? spec.sleeveRad * (1.06 - 0.42 * tl)
-          : spec.sleeveRad * (1.10 - 0.22 * tl);
+        var tl = sl / sSegL;
+        var omt = 1 - tl;
+        var axisX = omt * omt * p0x + 2 * omt * tl * p1x + tl * tl * p2x;
+        var axisY = omt * omt * p0y + 2 * omt * tl * p1y + tl * tl * p2y;
+        var axisZ = -0.015 * tl;
 
+        // Tangent vector along Bezier centerline for smooth perpendicular ring orientation
+        var tanX = 2 * omt * (p1x - p0x) + 2 * tl * (p2x - p1x);
+        var tanY = 2 * omt * (p1y - p0y) + 2 * tl * (p2y - p1y);
+        var tanLen = Math.sqrt(tanX * tanX + tanY * tanY) || 1;
+        tanX /= tanLen; tanY /= tanLen;
+        // Up normal perpendicular to sleeve axis pointing toward shoulder top
+        var upX = (side > 0) ? -tanY : tanY;
+        var upY = (side > 0) ?  tanX : -tanX;
+
+        // Smooth taper from anatomical shoulder oval -> relaxed draped sleeve -> stitched cuff
+        var blendCap = Math.pow(1 - tl, 1.6);
+        var taper = isLong ? (1.0 - 0.46 * Math.pow(tl, 0.85)) : (1.0 - 0.24 * tl);
+        var radY = baseRadY * blendCap + (spec.sleeveRad * 1.06 * taper) * (1 - blendCap);
+        var radZ = baseRadZ * blendCap + (spec.sleeveRad * 0.90 * taper) * (1 - blendCap);
+        var cuffLip = (tl > 0.92) ? (0.005 * Math.sin(((tl - 0.92) / 0.08) * Math.PI)) : 0.0;
+
+        var srow = [];
         for (var sr = 0; sr <= sSegR; sr++) {
           var tr = sr / sSegR, phi = tr * Math.PI * 2;
-          var upX = Math.sin(angleDown) * side, upY = Math.cos(angleDown);
-          var rCur = rad + 0.01 * tl * Math.sin(phi * 4.0 + tl * 3.0);
-          var lx = Math.cos(phi) * rCur * (1.18 - 0.18 * tl);
-          var lz = Math.sin(phi) * rCur * 0.94;
-          srow.push(pushV(axisX + upX * lx, axisY + upY * lx, axisZ + lz, reg.x + tr * reg.w, reg.y + tl * reg.h));
+          var cP = Math.cos(phi), sP = Math.sin(phi);
+          // Natural cloth crease ripple along underarm & lower sleeve
+          var underarmCrease = (cP < 0 ? 0.012 * (-cP) : 0.004) * Math.sin(tl * Math.PI);
+          var ripple = (0.008 * tl) * Math.sin(phi * 3.0 + tl * 2.6) - underarmCrease;
+          var ly = cP * (radY + ripple + cuffLip);
+          var lz = sP * (radZ + ripple * 0.7 + cuffLip);
+          // Gently pull inner shoulder root vertices inward so they tuck cleanly inside torso
+          var rootTuck = (sl === 0) ? 0.92 : 1.0;
+          var vx = axisX + upX * ly * rootTuck;
+          var vy = axisY + upY * ly * rootTuck;
+          var vz = axisZ + lz * rootTuck;
+          srow.push(pushV(vx, vy, vz, reg.x + tr * reg.w, reg.y + tl * reg.h));
         }
         sGrid.push(srow);
       }
+
       for (var sl2 = 0; sl2 < sSegL; sl2++) {
         for (var sr2 = 0; sr2 < sSegR; sr2++) {
           if (side > 0) addQuad(sGrid[sl2][sr2], sGrid[sl2 + 1][sr2], sGrid[sl2 + 1][sr2 + 1], sGrid[sl2][sr2 + 1]);
           else addQuad(sGrid[sl2][sr2], sGrid[sl2][sr2 + 1], sGrid[sl2 + 1][sr2 + 1], sGrid[sl2 + 1][sr2]);
         }
       }
-      // Close sleeve cuff end slightly recessed inward (realistic dark sleeve opening)
-      var endX = startX + side * Math.cos(angleDown) * (spec.sleeveLen * 0.92);
-      var endY = startY - Math.sin(angleDown) * (spec.sleeveLen * 0.92) - 0.04;
+
+      // Recessed inner sleeve cuff lip + dark interior closure (realistic thickness)
+      var endX = p2x - side * 0.05;
+      var endY = p2y + 0.03;
       var cuffCenter = pushV(endX, endY, -0.02, reg.x + 0.02, reg.y + 0.02);
       for (var sr3 = 0; sr3 < sSegR; sr3++) {
         if (side > 0) idx.push(sGrid[sSegL][sr3], cuffCenter, sGrid[sSegL][sr3 + 1]);
@@ -779,22 +826,30 @@
     "void main() {",
     "  vec4 tex = texture2D(uTex, vUV);",
     "  vec3 N = normalize(vNrm);",
+    "  float creaseShade = 1.0;",
     "  if (uWrinkle > 0.01) {",
-    "    float w1 = sin(vWorldPos.x * 16.0 + vWorldPos.y * 5.0) * cos(vWorldPos.y * 12.0);",
-    "    float w2 = sin(vWorldPos.x * 32.0 - vWorldPos.z * 20.0);",
-    "    N = normalize(N + vec3(w1 * 0.14 * uWrinkle, w2 * 0.08 * uWrinkle, 0.0));",
+    "    // Organic low-frequency cloth drape + subtle micro-weave (no harsh zebra stripes!)",
+    "    float d1 = sin(vWorldPos.x * 6.5 + vWorldPos.y * 2.4) * cos(vWorldPos.y * 4.8 - vWorldPos.z * 3.0);",
+    "    float d2 = sin(vWorldPos.x * 14.0 - vWorldPos.y * 8.5 + vWorldPos.z * 6.0);",
+    "    float weave = sin(vUV.x * 520.0) * sin(vUV.y * 520.0) * 0.015;",
+    "    N = normalize(N + vec3((d1 * 0.075 + d2 * 0.03) * uWrinkle, (d2 * 0.04) * uWrinkle, weave));",
+    "    creaseShade = 1.0 - uFoldShadow * 0.11 * max(0.0, -d1);",
     "  }",
-    "  vec3 L1 = normalize(vec3(0.75, 1.15, 1.45));",
-    "  vec3 L2 = normalize(vec3(-1.1, 0.5, -0.7));",
-    "  vec3 V  = normalize(vec3(0.0, 0.0, 3.2) - vWorldPos);",
+    "  vec3 L1 = normalize(vec3(0.65, 1.15, 1.55));",
+    "  vec3 L2 = normalize(vec3(-1.05, 0.45, 0.65));",
+    "  vec3 L3 = normalize(vec3(0.10, 0.85, -1.25));",
+    "  vec3 V  = normalize(vec3(0.0, 0.0, 3.4) - vWorldPos);",
     "  vec3 H1 = normalize(L1 + V);",
-    "  float wrap = max(0.0, (dot(N, L1) + 0.42) / 1.42);",
-    "  float diff2 = max(dot(N, L2), 0.0) * 0.35;",
+    "  // Studio softbox wrap diffuse + hemisphere sky/ground bounce",
+    "  float keyWrap = max(0.0, (dot(N, L1) + 0.48) / 1.48);",
+    "  float fillDiff = max(0.0, (dot(N, L2) + 0.35) / 1.35) * 0.32;",
+    "  float rimDiff = pow(1.0 - max(dot(N, V), 0.0), 2.6) * max(0.0, dot(N, L3) + 0.45) * 0.22;",
+    "  float hemi = 0.28 + 0.14 * (N.y * 0.5 + 0.5);",
     "  float spec = pow(max(dot(N, H1), 0.0), uSpecPow) * uSheen;",
-    "  float fresnel = pow(1.0 - max(dot(N, V), 0.0), 3.0) * (uSheen * 0.45);",
-    "  float foldAO = 1.0 - uFoldShadow * 0.22 * (0.5 + 0.5 * sin(vWorldPos.x * 16.0));",
-    "  vec3 col = tex.rgb * (0.34 + 0.66 * wrap + diff2) * foldAO + vec3(spec + fresnel);",
-    "  gl_FragColor = vec4(col, 1.0);",
+    "  float velvet = pow(1.0 - max(dot(N, V), 0.0), 3.2) * (uWrinkle > 0.01 ? 0.10 : uSheen * 0.45);",
+    "  vec3 lit = tex.rgb * (hemi + 0.62 * keyWrap + fillDiff) * creaseShade;",
+    "  vec3 col = lit + vec3(spec) + tex.rgb * (velvet + rimDiff * 0.6) + vec3(rimDiff * 0.08);",
+    "  gl_FragColor = vec4(min(col, vec3(1.0)), 1.0);",
     "}"
   ].join("\n");
 

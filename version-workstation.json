@@ -23,6 +23,6 @@
     "host/index.jsx",
     "CSXS/manifest.xml"
   ],
-  "notes": "Seal Maker precision rework: whole-line measurement with geometricBounds, balanced 2-line split, 3-pass fit inside max width/height; proportional arc text with per-glyph widths.",
-  "version": "17.7.13"
+  "notes": "Apparel 3D rework: seamless anatomical sleeves (welded shoulder cap, Bezier centerline, taper + cuff lip), organic armhole/drape folds, reworked cloth shader (micro-weave, 3-light softbox wrap, velvet rim).",
+  "version": "17.7.14"
 }
