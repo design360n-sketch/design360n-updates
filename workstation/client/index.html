@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Design360n Workstation v17.7.2 — Illustrator Extension</title>
+  <title>Design360n Workstation v17.7.3 — Illustrator Extension</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -24,7 +24,7 @@
       <div class="brand">
         <div class="brand-icon">D3</div>
         <div>
-          <div class="brand-title">Design360n Workstation <span style="font-size:10px;color:#3bcdca;">v17.7.2</span></div>
+          <div class="brand-title">Design360n Workstation <span style="font-size:10px;color:#3bcdca;">v17.7.3</span></div>
           <div class="brand-sub">Packaging • 3D T-Shirt • Stroke AI</div>
         </div>
       </div>
@@ -39,7 +39,8 @@
   </div>
 
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="tab-dieline"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg><span>Box 3D</span></button>
+      <button class="tab-btn active" data-tab="tab-home"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></button>
+      <button class="tab-btn" data-tab="tab-dieline"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg><span>Box 3D</span></button>
       <button class="tab-btn" data-tab="tab-apparel"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg><span>Apparel</span></button>
       <button class="tab-btn" data-tab="tab-export"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export</span></button>
       <button class="tab-btn" data-tab="tab-tools"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Tools</span></button>
@@ -49,8 +50,69 @@
     <main class="content">
       <div id="toast" class="toast"></div>
 
+      <!-- HOME: Photoshop-style tool cards — tap a card to open that one tool -->
+      <section id="tab-home" class="tab-pane active">
+        <div class="home-hero">
+          <div class="home-title">What do you want to make?</div>
+          <div class="home-hint">Tap a tool below — everything is one tap away.</div>
+        </div>
+        <div class="home-cards">
+          <button type="button" class="home-card" data-goto-tab="tab-dieline">
+            <span class="home-card-icon hc-box"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Box 3D</span><span class="home-card-desc">Box, bag &amp; pouch dielines with live 3D mockup.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-apparel">
+            <span class="home-card-icon hc-apparel"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Apparel 3D</span><span class="home-card-desc">T-shirt &amp; bottle 3D mockups, 360° spin.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-export">
+            <span class="home-card-icon hc-export"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Export</span><span class="home-card-desc">HD PNG, video &amp; 3D viewer exports.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-tools" data-goto-pro="pro-cal">
+            <span class="home-card-icon hc-cal"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Calendar</span><span class="home-card-desc">Vector calendars — Bangla &amp; English, any grid.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-tools" data-goto-pro="pro-codes">
+            <span class="home-card-icon hc-qr"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M18 18h3v3h-3z"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">QR &amp; Barcode</span><span class="home-card-desc">Vector QR codes &amp; barcodes, print-safe.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-tools" data-goto-pro="pro-sizes">
+            <span class="home-card-icon hc-sizes"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Sizes</span><span class="home-card-desc">36 artboard sizes — print, social &amp; merch.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-tools" data-goto-pro="pro-print">
+            <span class="home-card-icon hc-print"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Print</span><span class="home-card-desc">Nesting, GSM estimate &amp; print-ready PDF.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-tools" data-goto-pro="pro-quick">
+            <span class="home-card-icon hc-quick"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Quick AI</span><span class="home-card-desc">1-click clipping, layout &amp; AI helpers.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-stroke">
+            <span class="home-card-icon hc-stroke"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Stroke Converter</span><span class="home-card-desc">Raster to clean editable vector strokes.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-tools">
+            <span class="home-card-icon hc-pro"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Pro Tools</span><span class="home-card-desc">All pro tools in one place.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+        </div>
+      </section>
+
       <!-- TAB 1: 2D DIELINE GENERATOR -->
-      <section id="tab-dieline" class="tab-pane active">
+      <section id="tab-dieline" class="tab-pane">
+        <button type="button" class="back-btn" data-home="1">← Home</button>
         <div class="card">
           <div class="card-title"><span>Quick Industry Presets</span></div>
           <div class="field">
@@ -245,6 +307,7 @@
 
       <!-- TAB 3: 3D MOCKUP & VIDEO DOWNLOAD CENTER -->
       <section id="tab-export" class="tab-pane">
+        <button type="button" class="back-btn" data-home="1">← Home</button>
         <div class="card">
           <div class="card-title">3D Mockup Downloads</div>
           <div class="grid-2">
@@ -306,6 +369,7 @@
 
       <!-- TAB 4: PRO PACKAGING & ILLUSTRATOR QUICK TOOLS (ORGANIZED SUB-TABS v17.7) -->
       <section id="tab-tools" class="tab-pane">
+        <button type="button" class="back-btn" data-home="1">← Home</button>
         <div class="subtabs" id="proSubtabs">
           <button type="button" class="subtab-btn active" data-pro="pro-quick"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Quick AI</span></button>
           <button type="button" class="subtab-btn" data-pro="pro-codes"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M18 18h3v3h-3z"/></svg><span>QR / Bar</span></button>
@@ -612,6 +676,7 @@
 
       <!-- TAB 5: PEN-TOOL STROKE AI & PURE VECTOR ICON STUDIO (v10.0) -->
       <section id="tab-stroke" class="tab-pane">
+        <button type="button" class="back-btn" data-home="1">← Home</button>
         <div class="card" style="border-color:rgba(59,205,202,0.45);">
           <div class="card-title">
             <span>1-Click Pen-Tool Stroke Icon Finder</span>
@@ -769,10 +834,10 @@
             <button id="btnFillsToStrokes" class="btn btn-sm">Fills → Strokes</button>
           </div>
           <button id="btnVecToCenterStroke" class="btn btn-sm" style="width:100%;margin-top:6px;">
-            </div>
-          </div>
             Selected Filled Vector → Auto Centerline Stroke
           </button>
+            </div>
+          </div>
         </div>
 
         <div class="card">
@@ -789,6 +854,7 @@
 
       <!-- TAB 6: LIVE 2D DIELINE <-> 360° 3D T-SHIRT & BOTTLE STUDIO (v17.7) -->
       <section id="tab-apparel" class="tab-pane">
+        <button type="button" class="back-btn" data-home="1">← Home</button>
         <!-- MODE SWITCH: T-SHIRT STUDIO vs BOTTLE & TUMBLER STUDIO -->
         <div class="grid-2">
           <button id="btnModeTShirt" class="btn btn-primary btn-sm">T-Shirt Studio (12 Types × XS–3XL)</button>

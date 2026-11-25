@@ -330,3 +330,70 @@ select, input[type="number"], input[type="text"], input[type="password"] {
 .adv.open .adv-toggle .adv-chev { transform: rotate(180deg); }
 .adv-body { display: none; padding: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.22); }
 .adv.open .adv-body { display: block; }
+
+/* ---------------- HOME VIEW (v17.7.3): Photoshop-style tool cards ---------------- */
+/* Home is the default view: tap a card to open that one tool, Back returns home. */
+.tabs { grid-template-columns: repeat(6, 1fr); }
+
+.home-hero { margin-bottom: 2px; }
+.home-title {
+  font-size: 17px; font-weight: 800; letter-spacing: 0.2px;
+  background: linear-gradient(90deg, #f8fafc 0%, #67e8f9 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.home-hint { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
+
+.home-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.home-card {
+  position: relative;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 9px;
+  width: 100%; text-align: left; padding: 13px;
+  background: linear-gradient(160deg, rgba(22, 29, 43, 0.82), rgba(13, 17, 26, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px; color: var(--text-main); cursor: pointer; font-family: inherit;
+  transition: transform 0.15s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.home-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59, 205, 202, 0.48);
+  box-shadow: 0 8px 22px rgba(59, 205, 202, 0.16);
+  background: linear-gradient(160deg, rgba(26, 36, 54, 0.94), rgba(14, 20, 31, 0.95));
+}
+.home-card:active { transform: translateY(0); }
+.home-card span { pointer-events: none; }
+.home-card-icon {
+  width: 36px; height: 36px; border-radius: 10px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.home-card-icon svg { width: 19px; height: 19px; stroke: #ffffff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35)); }
+.hc-box { background: linear-gradient(135deg, #0ea5e9, #3bcdca); }
+.hc-apparel { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+.hc-export { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.hc-cal { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+.hc-qr { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
+.hc-sizes { background: linear-gradient(135deg, #6366f1, #3b82f6); }
+.hc-print { background: linear-gradient(135deg, #14b8a6, #0284c7); }
+.hc-quick { background: linear-gradient(135deg, #f97316, #db2777); }
+.hc-stroke { background: linear-gradient(135deg, #a855f7, #6366f1); }
+.hc-pro { background: linear-gradient(135deg, #10b981, #06b6d4); }
+.home-card-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.home-card-name { font-size: 13.5px; font-weight: 700; color: #f8fafc; }
+.home-card-desc {
+  font-size: 11.5px; color: var(--text-muted); line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.home-card-arrow {
+  position: absolute; top: 10px; right: 13px;
+  color: var(--accent); font-size: 18px; font-weight: 600; opacity: 0.55;
+}
+
+/* Back to Home — one per tool view, always at the top of its pane */
+.back-btn {
+  align-self: flex-start;
+  background: transparent; border: 1px solid rgba(59, 205, 202, 0.35); border-radius: 7px;
+  color: var(--accent); font-size: 12.5px; font-weight: 600; font-family: inherit;
+  padding: 7px 12px; min-height: 34px; cursor: pointer;
+}
+.back-btn:hover { background: rgba(59, 205, 202, 0.08); }

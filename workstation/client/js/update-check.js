@@ -6,7 +6,7 @@
  * gate still protects use — without a valid key the panel stays locked.
  * Checks on load, then every 5 minutes. Silent when offline. */
 (function () {
-  var PANEL_VERSION = "17.7.2";
+  var PANEL_VERSION = "17.7.3";
   var UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/design360n-sketch/design360n-updates/main/version-workstation.json";
   var pendingUpdate = null;
   var $ = function (id) { return document.getElementById(id); };
