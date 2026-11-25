@@ -1,6 +1,6 @@
 {
-  "version": "2.78",
-  "notes": "New cube logo mark in the header and license screen",
+  "version": "2.79",
+  "notes": "Logo SVG now carries fixed width/height so it cannot render squashed",
   "baseUrl": "https://raw.githubusercontent.com/design360n-sketch/design360n-updates/main/",
   "downloadUrl": "https://github.com/design360n-sketch/design360n-updates/releases/latest",
   "files": [
