@@ -23,6 +23,6 @@
     "host/index.jsx",
     "CSXS/manifest.xml"
   ],
-  "notes": "Cube logo redrawn: high-contrast faces (white top, mint left, dark right) so it reads as a cube at panel size, slightly larger in the tile.",
-  "version": "17.7.9"
+  "notes": "Cube logo made bigger: tighter viewBox + larger svg in the tile (header 24px, auth 34px), thinner stroke so the faces dominate.",
+  "version": "17.7.10"
 }

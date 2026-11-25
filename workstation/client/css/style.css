@@ -418,5 +418,5 @@ select, input[type="number"], input[type="text"], input[type="password"] {
 .home-foot .btn { opacity: .8; }
 
 /* Workstation logo mark: isometric cube inside the brand tiles. */
-.brand-icon svg { width: 20px; height: 20px; display: block; }
-.auth-icon svg { width: 28px; height: 28px; display: block; }
+.brand-icon svg { width: 24px; height: 24px; display: block; }
+.auth-icon svg { width: 34px; height: 34px; display: block; }
