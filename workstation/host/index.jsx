@@ -3181,15 +3181,32 @@ function dmExportSelectedLogo() {
         if (app.documents.length === 0) return "ERROR:NO_DOC";
         var doc = app.activeDocument;
         if (!doc.selection || doc.selection.length === 0) return "ERROR:NO_SELECTION";
-        var sel = doc.selection;
-        var x0 = 1e9, y0 = -1e9, x1 = -1e9, y1 = 1e9, i;
+        /* v17.7.26: locked / hidden items cannot be duplicated — filter
+         * them out first. A locked logo used to fail the whole export with
+         * a bare DUPLICATE_FAILED and no useful message; now the panel can
+         * tell the user to unlock it. */
+        var useSel = [];
+        for (var fi = 0; fi < doc.selection.length; fi++) {
+            var it = doc.selection[fi], skipIt = false;
+            try { if (it.locked) skipIt = true; } catch (eLk) {}
+            try { if (it.hidden) skipIt = true; } catch (eHd) {}
+            try { if (it.layer && (it.layer.locked || !it.layer.visible)) skipIt = true; } catch (eLy) {}
+            if (!skipIt) useSel.push(it);
+        }
+        if (useSel.length === 0) return "ERROR:SELECTION_LOCKED";
+        var sel = useSel;
+        var x0 = 1e9, y0 = -1e9, x1 = -1e9, y1 = 1e9, i, gotBounds = false;
         for (i = 0; i < sel.length; i++) {
-            var gb = sel[i].geometricBounds;
+            var gb;
+            try { gb = sel[i].geometricBounds; } catch (eGb) { continue; }
+            if (!gb) continue;
+            gotBounds = true;
             if (gb[0] < x0) x0 = gb[0];
             if (gb[1] > y0) y0 = gb[1];
             if (gb[2] > x1) x1 = gb[2];
             if (gb[3] < y1) y1 = gb[3];
         }
+        if (!gotBounds) return "ERROR:NO_SELECTION";
         var wPt = Math.max(1, x1 - x0), hPt = Math.max(1, y0 - y1);
         var tmpDir = new Folder(Folder.temp + "/Design360n_BrandKit_Mockups");
         if (!tmpDir.exists) tmpDir.create();
@@ -3199,11 +3216,13 @@ function dmExportSelectedLogo() {
         dp.title = "Design360n_Logo_Export";
         var tmp = app.documents.addDocument(DocumentColorSpace.RGB, dp);
         try { tmp.artboards[0].artboardRect = [x0, y0, x1, y1]; } catch (eAb) {}
-        var okDup = false;
+        var okDup = false, dupCount = 0;
         try {
-            for (i = 0; i < sel.length; i++) sel[i].duplicate(tmp.layers[0], ElementPlacement.PLACEATEND);
-            okDup = true;
-        } catch (eDup) { okDup = false; }
+            for (i = 0; i < sel.length; i++) {
+                try { sel[i].duplicate(tmp.layers[0], ElementPlacement.PLACEATEND); dupCount++; } catch (eOne) {}
+            }
+            okDup = (dupCount > 0);
+        } catch (eDup) { okDup = (dupCount > 0); }
         if (!okDup) {
             try { tmp.close(SaveOptions.DONOTSAVECHANGES); } catch (eC) {}
             return "ERROR:DUPLICATE_FAILED";
@@ -3264,12 +3283,30 @@ function dmGenerateBrandKitAI(payloadJSON) {
          *   so card, sign, packaging and shirt read as one system.
          * - Logo source priority: p.logoFile (Illustrator-export PNG or
          *   user-picked PNG) > selected-artwork seed duplicate >
-         *   generated text lockup. Stamp counts are reported in the OK
-         *   string so the panel status line can say how many zones got
-         *   the stamp and how many were skipped for min size. */
+         *   generated text lockup — in the stamps AND in the logo
+         *   sections (lg/placeLogo); a supplied file is never silently
+         *   replaced by the generated tile. If the file is missing, the
+         *   OK string says so (logoFileMissing) instead of hiding it.
+         *   Stamp counts are reported in the OK string so the panel
+         *   status line can say how many zones got the stamp and how
+         *   many were skipped for min size. */
         var mkPaths = (p.mockups && typeof p.mockups === "object") ? p.mockups : {};
         var mkTone = (p.mockupTone && typeof p.mockupTone === "object") ? p.mockupTone : {};
         var logoFile = (p.logoFile && String(p.logoFile).length > 0) ? String(p.logoFile) : "";
+        /* v17.7.26: a logo file that no longer exists must be reported,
+         * not silently replaced by the generated tile. Checked ONCE here
+         * so every consumer (stamps AND logo sections) sees the same
+         * truth. bkLogoUsedNote() is called at the end, when srcSel is
+         * known, so the status line can confirm which logo was used. */
+        var logoFileMissing = false;
+        if (logoFile) {
+            try { if (!(new File(logoFile)).exists) { logoFileMissing = true; logoFile = ""; } } catch (eLx) { logoFileMissing = true; logoFile = ""; }
+        }
+        function bkLogoUsedNote() {
+            var s = logoFile ? "Logo: apnar file" : ((typeof srcSel !== "undefined" && srcSel.length > 0) ? "Logo: Illustrator selection" : "Logo: generated");
+            if (logoFileMissing) s += " (Note: logo file paoa jayni — generated/selection logo use hoyeche)";
+            return s;
+        }
         var logoVariant = String(p.logoVariant || "auto");
         var logoTone = String(p.logoTone || "dark");
         var BK_MIN_LOGO_W = 64;
@@ -3482,8 +3519,30 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 return tf;
             }
             function lg(cx, cy, mw, mh, label) {
-                /* v17.7.25: logos are direct children of the layer
-                 * (stampLayer), named, so one click selects ONLY the logo. */
+                /* v17.7.26: logos are direct children of the layer
+                 * (stampLayer), named, so one click selects ONLY the logo.
+                 * The SUPPLIED logo file wins here too — before this, lg()
+                 * only ever used the live Illustrator selection (seedB), so
+                 * an uploaded PNG was ignored in the logo sections and the
+                 * sections showed the generated initials tile. */
+                if (logoFile) {
+                    try {
+                        var lgF = new File(logoFile);
+                        if (lgF.exists) {
+                            var lgFileGrp = (stampLayer || g).groupItems.add();
+                            lgFileGrp.name = bkLogoName(label || "Brand Logo");
+                            var lgPi = lgFileGrp.placedItems.add();
+                            lgPi.file = lgF;
+                            var lgb = lgPi.geometricBounds;
+                            var llw = Math.max(1, lgb[2] - lgb[0]), llh = Math.max(1, lgb[1] - lgb[3]);
+                            var lsc = Math.min(mw / llw, mh / llh) * 100;
+                            if (lsc > 0 && lsc < 10000) lgPi.resize(lsc, lsc, true, true, true, true, lsc, Transformation.CENTER);
+                            var lgb2 = lgPi.geometricBounds;
+                            lgPi.translate(cx - (lgb2[0] + lgb2[2]) / 2, cy - (lgb2[1] + lgb2[3]) / 2);
+                            return lgFileGrp;
+                        }
+                    } catch (eLf2) {}
+                }
                 if (seedB && seedB.pageItems.length > 0) {
                     var du = seedB.duplicate(stampLayer || g, ElementPlacement.PLACEATEND);
                     try { du.name = bkLogoName(label || "Brand Logo"); } catch (eNm) {}
@@ -3733,7 +3792,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
 
             if (seedB) { try { seedB.remove(); } catch (eR) {} }
             try { app.executeMenuCommand("fitinwindow"); } catch (eF) {}
-            return "OK:Generated Vertical Behance Brand Sheet (" + tpl + (srcSel.length > 0 ? " • Your Logo Applied!" : "") + ")! • Logo on mockups: " + stampOK + " stamped per guideline" + (stampSkip > 0 ? " (" + stampSkip + " skipped — below min size: " + stampSkipCats.join(", ") + ")" : "") + ".";
+            return "OK:Generated Vertical Behance Brand Sheet (" + tpl + (srcSel.length > 0 ? " • Your Logo Applied!" : "") + ")! • Logo on mockups: " + stampOK + " stamped per guideline" + (stampSkip > 0 ? " (" + stampSkip + " skipped — below min size: " + stampSkipCats.join(", ") + ")" : "") + " • " + bkLogoUsedNote() + ".";
         }
 
         // All 10 Complete Agency Branding Checklist Artboards (1920x1080 presentation / print-ready boards)
@@ -3804,7 +3863,29 @@ function dmGenerateBrandKitAI(payloadJSON) {
         }
         function placeLogo(grp, cx, cy, maxW, maxH, label) {
             /* v17.7.25: logos are direct children of the layer
-             * (stampLayer), named, so one click selects ONLY the logo. */
+             * (stampLayer), named, so one click selects ONLY the logo.
+             * v17.7.26: the SUPPLIED logo file wins here too (book
+             * sections) — previously only the live selection
+             * (logoSeedGrp) was used, so an uploaded PNG never reached
+             * the book's logo sections. */
+            if (logoFile) {
+                try {
+                    var plF = new File(logoFile);
+                    if (plF.exists) {
+                        var plFileGrp = (stampLayer || grp).groupItems.add();
+                        plFileGrp.name = bkLogoName(label || "Brand Logo");
+                        var plPi = plFileGrp.placedItems.add();
+                        plPi.file = plF;
+                        var pgb = plPi.geometricBounds;
+                        var plw = Math.max(1, pgb[2] - pgb[0]), plh = Math.max(1, pgb[1] - pgb[3]);
+                        var psc = Math.min(maxW / plw, maxH / plh) * 100;
+                        if (psc > 0 && psc < 10000) plPi.resize(psc, psc, true, true, true, true, psc, Transformation.CENTER);
+                        var pgb2 = plPi.geometricBounds;
+                        plPi.translate(cx - (pgb2[0] + pgb2[2]) / 2, cy - (pgb2[1] + pgb2[3]) / 2);
+                        return plFileGrp;
+                    }
+                } catch (ePf2) {}
+            }
             if (logoSeedGrp && logoSeedGrp.pageItems.length > 0) {
                 var lg = logoSeedGrp.duplicate(stampLayer || grp, ElementPlacement.PLACEATEND);
                 try { lg.name = bkLogoName(label || "Brand Logo"); } catch (eNm2) {}
@@ -4067,7 +4148,7 @@ function dmGenerateBrandKitAI(payloadJSON) {
 
         if (logoSeedGrp) { try { logoSeedGrp.remove(); } catch (eRem) {} }
         try { app.executeMenuCommand("fitall"); } catch (eFit) {}
-        return "OK:Generated Complete " + specs.length + "-Section Brand Identity Book (" + (srcSel.length > 0 ? "Your Selected Logo Applied!" : "Monogram Applied") + ")! • Logo on mockups: " + stampOK + " stamped per guideline" + (stampSkip > 0 ? " (" + stampSkip + " skipped — below min size: " + stampSkipCats.join(", ") + ")" : "") + ".";
+        return "OK:Generated Complete " + specs.length + "-Section Brand Identity Book (" + (srcSel.length > 0 ? "Your Selected Logo Applied!" : "Monogram Applied") + ")! • Logo on mockups: " + stampOK + " stamped per guideline" + (stampSkip > 0 ? " (" + stampSkip + " skipped — below min size: " + stampSkipCats.join(", ") + ")" : "") + " • " + bkLogoUsedNote() + ".";
     } catch (err) {
         return "ERROR:" + err.message + " (line " + err.line + ")";
     }

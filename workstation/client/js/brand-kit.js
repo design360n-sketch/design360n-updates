@@ -141,6 +141,7 @@
   var bkMockupBusy = false;
   var bkPlanFn = null;
   var bkLogoFilePath = "";
+  var bkLogoFileName = "";
   var bkLogoToneCurrent = "";
 
   function bkNode() {
@@ -331,6 +332,127 @@
     var lum = (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
     return lum < 0.5 ? "dark" : "light";
   }
+
+  /* --- Logo upload (v17.7.26) ---
+   * DIAGNOSED BUG (user, real Illustrator): "logo upload ileo oita niye
+   * kaj korteche na" — even after uploading, the kit ignored the logo.
+   * Root cause: the file input's change handler set bkLogoFilePath but
+   * NEVER switched the Logo Source dropdown to "file" — readPlan() reads
+   * the source from the dropdown (default "illustrator"), so Generate
+   * went down the Illustrator-selection path and ignored the uploaded
+   * file completely. Second cause: the JSX logo sections (lg/placeLogo)
+   * only ever used the live Illustrator selection — never p.logoFile —
+   * so even a used file never reached the logo sections. Third cause:
+   * the plain <input type="file"> is unreliable inside a CEP panel (the
+   * native dialog may never open / change may never fire), so the picker
+   * here is the CEP-native dialog (window.cep.fs.showOpenDialog), with
+   * the hidden file input kept only as a non-CEP fallback. */
+  function bkCepFs() {
+    try {
+      if (typeof window !== "undefined" && window.cep && window.cep.fs) return window.cep.fs;
+      if (typeof cep !== "undefined" && cep && cep.fs) return cep.fs;
+    } catch (e) {}
+    return null;
+  }
+  function bkLogoFileReady(dest, name) {
+    /* Shared tail after a logo file has been copied into the temp folder:
+     * record it, FORCE the source to "file", sample its tone, and show
+     * the name everywhere the user looks before pressing Generate. */
+    bkLogoFilePath = dest;
+    bkLogoFileName = name || "";
+    var elLogoSrc = document.getElementById("bkLogoSource");
+    if (elLogoSrc) { elLogoSrc.value = "file"; }
+    bkSampleFileTone(dest, function (tone) { bkLogoToneCurrent = tone; });
+    bkShowLogoLoaded();
+  }
+  function bkShowLogoLoaded() {
+    var elLoaded = document.getElementById("bkLogoLoaded");
+    var elClear = document.getElementById("bkLogoClear");
+    var elFileStatus = document.getElementById("bkLogoFileStatus");
+    if (elLoaded) {
+      if (bkLogoFilePath && bkLogoFileName) {
+        elLoaded.textContent = "Logo ready: " + bkLogoFileName + " ✓ — Generate chaple ei logo tai use hobe (mockup + logo section sob jaygay).";
+      } else {
+        elLoaded.textContent = "Kono logo deoa hoyni — Upload Logo chapen, ba Illustrator e logo ta select kore Generate chapen.";
+      }
+    }
+    if (elClear) elClear.style.display = (bkLogoFilePath && bkLogoFileName) ? "" : "none";
+    if (elFileStatus && bkLogoFilePath && bkLogoFileName) elFileStatus.textContent = "Logo file ready: " + bkLogoFileName + " ✓ — it will be used on every mockup and in the logo sections.";
+  }
+  function bkClearLogoFile() {
+    bkLogoFilePath = ""; bkLogoFileName = ""; bkLogoToneCurrent = "";
+    var elLogoSrc = document.getElementById("bkLogoSource");
+    if (elLogoSrc) { elLogoSrc.value = "illustrator"; }
+    var elRow = document.getElementById("bkLogoFileRow");
+    if (elRow) elRow.style.display = "none";
+    bkShowLogoLoaded();
+  }
+  function bkLogoSourceForPlan(elLogoSrc) {
+    /* A loaded logo file beats the dropdown default: the user uploaded a
+     * file, so Generate must use it even if the dropdown still says
+     * "illustrator". An explicit "generated" choice still wins; clearing
+     * the uploaded file (✕ soran) restores the dropdown's choice. */
+    var src = elLogoSrc ? elLogoSrc.value : "illustrator";
+    if (src !== "generated" && bkLogoFilePath) return "file";
+    return src;
+  }
+  function bkPickLogoFile() {
+    var elStat = document.getElementById("bkStatus");
+    function fail(msg) { if (elStat) { elStat.textContent = msg; elStat.style.color = "#f87171"; } }
+    function accept(srcPath) {
+      var name = String(srcPath || "").split(/[\\\/]/).pop() || "";
+      if (!/\.(png|jpe?g)$/i.test(name)) {
+        bkLogoFilePath = ""; bkLogoFileName = "";
+        fail("Oi file ta logo hobe na — shudhu PNG ba JPG logo file pick koren.");
+        bkShowLogoLoaded();
+        return;
+      }
+      var n = bkNode(), dir = bkTempDir();
+      if (!n || !dir) {
+        fail("Logo copy kora jayni — temp folder pacche na. Illustrator restart kore abar try koren.");
+        return;
+      }
+      var ext = /\.png$/i.test(name) ? ".png" : ".jpg";
+      var dest = n.path.join(dir, "logo_user" + ext);
+      try {
+        if (typeof n.fs.copyFileSync === "function") n.fs.copyFileSync(srcPath, dest);
+        else { var buf = n.fs.readFileSync(srcPath); n.fs.writeFileSync(dest, buf); }
+      } catch (e) {
+        fail("Logo file ta pora jayni (" + (e && e.message ? e.message : "read error") + ") — abar pick koren.");
+        return;
+      }
+      bkLogoFileReady(dest, name);
+      if (elStat) { elStat.textContent = "Logo ready: " + name + " ✓ — Generate chaple ei logo tai use hobe."; elStat.style.color = "#3bcdca"; }
+    }
+    var cfs = bkCepFs();
+    if (cfs && typeof cfs.showOpenDialog === "function") {
+      try {
+        cfs.showOpenDialog(false, false, "Pick your logo (PNG / JPG)", "", ["png", "jpg", "jpeg"], function (res) {
+          var paths = null;
+          if (res) {
+            if (Array.isArray(res.data)) paths = res.data;
+            else if (Array.isArray(res)) paths = res;
+            else if (typeof res === "string") paths = [res];
+            else if (typeof res.data === "string") paths = [res.data];
+          }
+          if (!paths || !paths.length || !paths[0]) {
+            if (elStat) elStat.textContent = "Logo pick kora hoyni — ager logo tai thaklo (thakle).";
+            return;
+          }
+          accept(String(paths[0]));
+        });
+        return;
+      } catch (e) { /* fall through to the hidden file input */ }
+    }
+    var elFile = document.getElementById("bkLogoFile");
+    if (elFile && typeof elFile.click === "function") {
+      var elRow = document.getElementById("bkLogoFileRow");
+      if (elRow) elRow.style.display = "";
+      elFile.click();
+      return;
+    }
+    fail("Logo picker khola jayni — Illustrator er vitore panel ta khule abar try koren.");
+  }
   function bkMockupTones() {
     var out = {};
     for (var cat in bkMockupCache) {
@@ -467,8 +589,8 @@
    * builds the full brand guideline. The panel's own Generate is only the
    * instant local preview/draft — its fetch is fast, not "the best".
    * The package is built LOCALLY in the OS temp folder (works offline);
-   * the transmit call is NOT implemented here — the server endpoint is
-   * the parent agent's job afterwards (see upload-spec.json). */
+   * bkTransmitMusePackage below POSTs it to the server (see
+   * upload-spec.json for the exact contract). */
   function bkPanelVersion() {
     /* PANEL_VERSION lives inside an IIFE in update-check.js and is not
      * global — read the version chip the panel itself renders, with a
@@ -478,7 +600,7 @@
       var t = el ? String(el.textContent || "").replace(/^v/i, "").trim() : "";
       if (/^\d+\.\d+\.\d+$/.test(t)) return t;
     } catch (e) {}
-    return "17.7.25";
+    return "17.7.26";
   }
   function bkLicenseKeyHead() {
     try {
@@ -491,7 +613,7 @@
   function bkStampNow() {
     var d = new Date();
     function p2(n) { return (n < 10 ? "0" : "") + n; }
-    return "" + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + "-" + p2(d.getHours()) + p2(d.getMinutes());
+    return "" + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + "-" + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
   }
   function bkSafeName(s) {
     return (String(s || "brand").replace(/[^a-z0-9-_]+/gi, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "") || "brand");
@@ -510,6 +632,10 @@
     var out = n.path.join(outDir, bkSafeName(plan.brandName) + "-" + bkStampNow());
     try {
       if (!n.fs.existsSync(outDir)) n.fs.mkdirSync(outDir);
+      /* v17.7.26: two Sends in the same second must not collide on the
+       * folder name — suffix until the name is free. */
+      var suffix = 0;
+      while (n.fs.existsSync(out)) { suffix++; out = n.path.join(outDir, bkSafeName(plan.brandName) + "-" + bkStampNow() + "-" + suffix); }
       n.fs.mkdirSync(out);
     } catch (e) { done({ ok: false, reason: "no-outbox" }); return; }
     var files = [];
@@ -555,8 +681,13 @@
       endpoint: "https://script.google.com/macros/s/AKfycbx5HH2LS6FDoHpnKoIM9tDYfNqQ1CxXCe2iFO1MColMUSpacgwnzdO95mwoyLHFovtvvw/exec",
       action: "brandkit_upload",
       method: "POST",
-      fields: { key: "<license key from the gate>", brand: "<name>", files: { pdf: "base64", plan: "json", logo: "base64" } },
-      notes: "Apps Script doPost must save into Drive folder 'Design360n BrandKit Inbox' and return {ok:true,fileId}"
+      contentType: "text/plain (body is a JSON string — Apps Script has no CORS preflight handler, so a JSON content type would fail before reaching doPost)",
+      request: { action: "brandkit_upload", brand: "<name>", licenseKey: "<full key from the gate, or '' when none is stored>", files: [{ name: "<file name>", mime: "<mime>", base64: "<base64>" }] },
+      filesSent: "guideline PDF + logo + plan.json + manifest.txt + muse-brief.txt (upload-spec.json itself is NOT sent)",
+      responseOk: { ok: true, folderId: "<Drive folder id>", fileIds: { "<name>": "<id>" }, validated: true, brand: "<name>" },
+      responseFail: { ok: false, error: "<plain reason>" },
+      driveFolder: "Design360n BrandKit Inbox",
+      notes: "Apps Script doPost (Code_v6.gs, action brandkit_upload) saves into Drive folder 'Design360n BrandKit Inbox' and returns the JSON above. Panel reads the JSON reply — same POST pattern as the website AI tools."
     };
     wfile("upload-spec.json", JSON.stringify(spec, null, 2));
     var brief = "Brand: " + plan.brandName + ". Industry: " + (plan.industry || "(not given)") + ". Personality: " + (plan.personality || "") + ". " +
@@ -564,6 +695,70 @@
       "Panel draft PDF included for reference only — Muse's version is the final.";
     wfile("muse-brief.txt", brief);
     done({ ok: true, dir: out, files: files, pdf: pdfOk, plan: planOk, logo: logoOk });
+  }
+
+  /* --- Send to Muse TRANSMIT (v17.7.26, panel side) ---
+   * After the local package is built, POST it to the license-server
+   * /exec endpoint (action brandkit_upload). Same POST pattern as the
+   * website AI tools (proven live): Content-Type text/plain with a JSON
+   * string body — Apps Script has no CORS preflight handler, so a JSON
+   * content type would fail before reaching doPost. fetch follows the
+   * /exec redirect and the reply JSON is readable (same as the AI tools).
+   * 60s timeout via AbortController. done({ok, folderId, fileIds,
+   * validated, error}) — ok:false NEVER loses the package: the local
+   * outbox folder stays on disk and the caller must show its path.
+   * The FULL license key goes in the POST body only (never displayed,
+   * never written to manifest.txt — that keeps first-4-chars only). */
+  var BK_EXEC_URL = "https://script.google.com/macros/s/AKfycbx5HH2LS6FDoHpnKoIM9tDYfNqQ1CxXCe2iFO1MColMUSpacgwnzdO95mwoyLHFovtvvw/exec";
+  function bkLicenseKeyFull() {
+    try {
+      var raw = localStorage.getItem("design360n_workstation_license");
+      var rec = raw ? JSON.parse(raw) : null;
+      return (rec && rec.key) ? String(rec.key) : "";
+    } catch (e) { return ""; }
+  }
+  function bkMimeForFile(name) {
+    if (/\.pdf$/i.test(name)) return "application/pdf";
+    if (/\.png$/i.test(name)) return "image/png";
+    if (/\.jpe?g$/i.test(name)) return "image/jpeg";
+    if (/\.json$/i.test(name)) return "application/json";
+    return "text/plain";
+  }
+  function bkTransmitMusePackage(pkg, brand, done) {
+    var n = bkNode();
+    if (!n || !pkg || !pkg.dir || !pkg.files || !pkg.files.length) { done({ ok: false, error: "package ta thik moto toiri hoyni — abar Generate + Send chapen" }); return; }
+    if (typeof fetch !== "function") { done({ ok: false, error: "ei panel-e internet call kora jacche na" }); return; }
+    var files = [];
+    try {
+      pkg.files.forEach(function (name) {
+        if (name === "upload-spec.json") return; /* spec stays local only */
+        var buf = n.fs.readFileSync(n.path.join(pkg.dir, name));
+        files.push({ name: name, mime: bkMimeForFile(name), base64: buf.toString("base64") });
+      });
+    } catch (e) { done({ ok: false, error: "package er file gulo pora jayni" }); return; }
+    if (!files.length) { done({ ok: false, error: "package ta thik moto toiri hoyni — abar Generate + Send chapen" }); return; }
+    var body = { action: "brandkit_upload", brand: brand || "brand", licenseKey: bkLicenseKeyFull(), files: files };
+    var ctrl = null, timer = null;
+    try {
+      ctrl = new AbortController();
+      timer = setTimeout(function () { try { ctrl.abort(); } catch (e2) {} }, 60000);
+    } catch (e3) { ctrl = null; }
+    var opts = { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body) };
+    if (ctrl) opts.signal = ctrl.signal;
+    fetch(BK_EXEC_URL, opts).then(function (r) {
+      return r.text().then(function (t) { return { status: r.status, text: t }; });
+    }).then(function (res) {
+      if (timer) clearTimeout(timer);
+      var j = null;
+      try { j = JSON.parse(res.text); } catch (eJ) { j = null; }
+      if (j && j.ok) { done({ ok: true, folderId: j.folderId || "", fileIds: j.fileIds || {}, validated: !!j.validated, brand: j.brand || body.brand, note: j.note || "" }); return; }
+      var why = (j && (j.error || j.reason)) || ("server theke thik reply aseni (HTTP " + res.status + ")");
+      done({ ok: false, error: why });
+    }).catch(function (err) {
+      if (timer) clearTimeout(timer);
+      var aborted = err && err.name === "AbortError";
+      done({ ok: false, error: aborted ? "60 second-e server theke kono reply aseni — internet slow ba server busy hote pare" : "internet/server-er sathe jogajog hocche na" + ((err && err.message) ? " (" + err.message + ")" : "") });
+    });
   }
 
   function brandPreviewSVG(opts) {
@@ -683,7 +878,7 @@
         mockupMode: elMode ? elMode.value : "auto",
         mockups: bkMockupPaths(),
         mockupTone: bkMockupTones(),
-        logoSource: elLogoSrc ? elLogoSrc.value : "illustrator",
+        logoSource: bkLogoSourceForPlan(elLogoSrc),
         logoVariant: elLogoVar ? elLogoVar.value : "auto",
         logoFile: bkLogoFilePath || "",
         logoTone: bkLogoToneCurrent || bkHexTone(p),
@@ -797,23 +992,31 @@
               } else if (res && res.indexOf("ERROR:NO_SELECTION") === 0) {
                 if (elStat) { elStat.textContent = "Illustrator e logo ta select kore abar Generate chapen — kono logo select kora nai."; elStat.style.color = "#f87171"; }
                 cb(false);
+              } else if (res && res.indexOf("ERROR:SELECTION_LOCKED") === 0) {
+                if (elStat) { elStat.textContent = "Logo ta locked ba lukano ache — Illustrator e unlock kore abar select kore Generate chapen."; elStat.style.color = "#f87171"; }
+                cb(false);
               } else {
                 if (elStat) { elStat.textContent = "Logo export hoyni (" + (res || "unknown error") + ") — logo file ba Generated text logo use koren."; elStat.style.color = "#f87171"; }
                 cb(false);
               }
             });
           } else if (plan.logoSource === "file") {
-            if (bkLogoFilePath) {
+            /* v17.7.26: NO silent fallback — if the user chose a file, a
+             * missing file must STOP the Generate with the exact reason,
+             * never build the kit with the generated text logo instead. */
+            var nF = bkNode();
+            if (!bkLogoFilePath) {
+              if (elStat) { elStat.textContent = "Logo file pick kora hoyni — age 'Upload Logo' chapen, tarpor Generate chapen."; elStat.style.color = "#f87171"; }
+              cb(false);
+            } else if (nF && !nF.fs.existsSync(bkLogoFilePath)) {
+              if (elStat) { elStat.textContent = "Logo file ta ar paoa jacche na (" + (bkLogoFileName || "logo") + ") — abar 'Upload Logo' chapen."; elStat.style.color = "#f87171"; }
+              cb(false);
+            } else {
               plan.logoFile = bkLogoFilePath;
               bkSampleFileTone(plan.logoFile, function (tone) {
                 bkLogoToneCurrent = tone; plan.logoTone = tone;
                 cb(true);
               });
-            } else {
-              plan.logoFile = "";
-              plan.logoTone = bkHexTone(plan.primary);
-              if (elStat) { elStat.textContent = "Kono logo file pick kora hoyni — generated text logo diye banano hocche."; elStat.style.color = "#f59e0b"; }
-              cb(true);
             }
           } else {
             plan.logoFile = "";
@@ -844,29 +1047,48 @@
       });
     }
 
-    /* --- Send to Muse (v17.7.25): the MAIN deliverable path. The panel
-     * sends the brand package; Muse picks the BEST realistic online
-     * mockups and builds the final guideline. The button prepares the
-     * package locally — the transmit call is the parent agent's server
-     * job afterwards (see upload-spec.json in the package). */
+    /* --- Send to Muse (v17.7.26): the MAIN deliverable path. The panel
+     * builds the brand package locally, then bkTransmitMusePackage POSTs
+     * it to the server — Muse picks the BEST realistic online mockups
+     * and builds the final guideline. A failed transmit never loses the
+     * package: the local outbox folder stays on disk and the status line
+     * shows its exact path. */
     var btnSend = document.getElementById("btnBkSendToMuse");
     var elSendStatus = document.getElementById("bkSendStatus");
     if (btnSend) {
       btnSend.addEventListener("click", function () {
-        if (!bkLastPlan || !bkLastPdfPath) {
+        /* v17.7.26: the gate is "no Generate yet" ONLY — a Generate whose
+         * PDF export failed must NOT block Send (the package builder
+         * tolerates a missing PDF). Every outcome names the exact step. */
+        if (!bkLastPlan) {
           if (elSendStatus) elSendStatus.textContent = "Age Generate chapen — tarpor Send to Muse chaple package ready hobe.";
-          if (elStat) elStat.textContent = "Age Generate chapen — tarpor Send to Muse chaple package ready hobe.";
+          if (elStat) { elStat.textContent = "Age Generate chapen — tarpor Send to Muse chaple package ready hobe."; elStat.style.color = "#f87171"; }
           return;
         }
+        if (!bkLastPdfPath && elSendStatus) elSendStatus.textContent = "Note: guideline PDF export hoyni — package ta PDF chara banano hocche.";
         if (elSendStatus) elSendStatus.textContent = "Package banacchi…";
         bkBuildMusePackage(bkLastPlan, bkLastPdfPath, function (res) {
           if (!res.ok) {
-            if (elSendStatus) elSendStatus.textContent = "Package banano jayni (temp folder pacche na).";
+            var why = (res.reason === "no-temp") ? "temp folder pacche na" : (res.reason === "no-outbox") ? "outbox folder banano jayni" : (res.reason || "unknown error");
+            if (elSendStatus) elSendStatus.textContent = "Package banano jayni — " + why + ". Illustrator restart kore abar Generate + Send chapen.";
+            if (elStat) { elStat.textContent = "Send to Muse hoyni — package banano jayni (" + why + ")."; elStat.style.color = "#f87171"; }
             return;
           }
-          var msg = "Package ready ✓ — " + res.dir + " — Muse ke bollei oita niye kaj korbe.";
-          if (elSendStatus) elSendStatus.textContent = msg;
-          if (elStat) { elStat.textContent = "Send to Muse package ready ✓ — Muse online theke best mockup niye full brand guideline banabe. Folder: " + res.dir; elStat.style.color = "#3bcdca"; }
+          var nFiles = (res.files && res.files.length) || 0;
+          if (elSendStatus) elSendStatus.textContent = "Package ready ✓ (" + nFiles + " files) — Muse er kache pathacchi…";
+          if (elStat) { elStat.textContent = "Package ready ✓ — Muse er kache pathacchi…"; elStat.style.color = "#3bcdca"; }
+          bkTransmitMusePackage(res, bkLastPlan.brandName, function (tx) {
+            if (tx.ok) {
+              var okMsg = "Muse er kache pathano hoye geche ✓ — Drive folder: Design360n BrandKit Inbox" + (tx.validated ? "" : " (license key mileni — unvalidated hishebe save hoyeche)") + ". Muse online theke best mockup niye full brand guideline banabe.";
+              if (elSendStatus) elSendStatus.textContent = okMsg + (tx.folderId ? " Folder ID: " + tx.folderId : "");
+              if (elStat) { elStat.textContent = okMsg; elStat.style.color = "#3bcdca"; }
+              return;
+            }
+            var why = tx.error || "unknown error";
+            var failMsg = "Muse er kache pathano jayni — " + why + ". Package ta roye geche: " + res.dir + " — pore abar Send chapen.";
+            if (elSendStatus) elSendStatus.textContent = failMsg;
+            if (elStat) { elStat.textContent = failMsg; elStat.style.color = "#f87171"; }
+          });
         });
       });
     }
@@ -890,7 +1112,11 @@
     });
     refreshTemplateSuggest();
 
-    /* --- Logo source: Illustrator selection (default) / file / generated --- */
+    /* --- Logo source: Illustrator selection (default) / file / generated ---
+     * v17.7.26: the big "Upload Logo" button opens the CEP-native dialog;
+     * picking a file forces the source to "file" (bkLogoFileReady) so the
+     * uploaded file can never be ignored again. The hidden file input is
+     * only the non-CEP fallback — its handler shares the same tail. */
     var elLogoSrc = document.getElementById("bkLogoSource");
     var elLogoFile = document.getElementById("bkLogoFile");
     var elLogoFileRow = document.getElementById("bkLogoFileRow");
@@ -898,22 +1124,32 @@
     function syncLogoSourceUI() {
       if (elLogoFileRow) elLogoFileRow.style.display = (elLogoSrc && elLogoSrc.value === "file") ? "" : "none";
     }
+    var btnUploadLogo = document.getElementById("btnBkUploadLogo");
+    if (btnUploadLogo) btnUploadLogo.addEventListener("click", function () { bkPickLogoFile(); });
+    var btnClearLogo = document.getElementById("bkLogoClear");
+    if (btnClearLogo) btnClearLogo.addEventListener("click", function () {
+      bkClearLogoFile();
+      if (elStat) elStat.textContent = "Logo sorano hoyeche — ekhon Illustrator selection ba Generated text logo use hobe.";
+    });
+    bkShowLogoLoaded();
     if (elLogoSrc) elLogoSrc.addEventListener("change", syncLogoSourceUI);
     syncLogoSourceUI();
     if (elLogoFile) {
       elLogoFile.addEventListener("change", function () {
         var f = elLogoFile.files && elLogoFile.files[0];
-        if (!f) { bkLogoFilePath = ""; bkLogoToneCurrent = ""; if (elLogoFileStatus) elLogoFileStatus.textContent = ""; return; }
+        if (!f) { bkLogoFilePath = ""; bkLogoFileName = ""; bkLogoToneCurrent = ""; if (elLogoFileStatus) elLogoFileStatus.textContent = ""; bkShowLogoLoaded(); return; }
         var name = f.name || "";
         if (!/\.(png|jpe?g)$/i.test(name)) {
-          bkLogoFilePath = ""; bkLogoToneCurrent = "";
+          bkLogoFilePath = ""; bkLogoFileName = ""; bkLogoToneCurrent = "";
           if (elLogoFileStatus) elLogoFileStatus.textContent = "Only PNG or JPG logo files — this file was not used.";
+          bkShowLogoLoaded();
           return;
         }
         var n = bkNode(), dir = bkTempDir();
         if (!n || !dir) {
-          bkLogoFilePath = ""; bkLogoToneCurrent = "";
+          bkLogoFilePath = ""; bkLogoFileName = ""; bkLogoToneCurrent = "";
           if (elLogoFileStatus) elLogoFileStatus.textContent = "Could not copy the logo file (no temp folder access).";
+          bkShowLogoLoaded();
           return;
         }
         var ext = /\.png$/i.test(name) ? ".png" : ".jpg";
@@ -923,17 +1159,19 @@
           try {
             var buf = (typeof Buffer !== "undefined") ? Buffer.from(rd.result) : new Uint8Array(rd.result);
             n.fs.writeFileSync(dest, buf);
-            bkLogoFilePath = dest;
-            bkSampleFileTone(dest, function (tone) { bkLogoToneCurrent = tone; });
-            if (elLogoFileStatus) elLogoFileStatus.textContent = "Logo file ready: " + name + " ✓ — it will be stamped on every mockup.";
+            bkLogoFileReady(dest, name);
+            if (elLogoFileStatus) elLogoFileStatus.textContent = "Logo file ready: " + name + " ✓ — it will be used on every mockup and in the logo sections.";
+            if (elStat) { elStat.textContent = "Logo ready: " + name + " ✓ — Generate chaple ei logo tai use hobe."; elStat.style.color = "#3bcdca"; }
           } catch (e) {
-            bkLogoFilePath = ""; bkLogoToneCurrent = "";
+            bkLogoFilePath = ""; bkLogoFileName = ""; bkLogoToneCurrent = "";
             if (elLogoFileStatus) elLogoFileStatus.textContent = "Could not read that file — pick the PNG again, or use 'Logo from Illustrator'.";
+            bkShowLogoLoaded();
           }
         };
         rd.onerror = function () {
-          bkLogoFilePath = ""; bkLogoToneCurrent = "";
+          bkLogoFilePath = ""; bkLogoFileName = ""; bkLogoToneCurrent = "";
           if (elLogoFileStatus) elLogoFileStatus.textContent = "Could not read that file — pick the PNG again, or use 'Logo from Illustrator'.";
+          bkShowLogoLoaded();
         };
         rd.readAsArrayBuffer(f);
       });
@@ -951,5 +1189,5 @@
     else initBrandKitUI();
   }
 
-  global.BrandKitStudio = { brandPreviewSVG: brandPreviewSVG, rgbToCmykStr: rgbToCmykStr, mockupCatalog: BK_MOCKUPS, templateZones: BK_TEMPLATE_ZONES, suggestTemplate: bkSuggestTemplate, moodWord: bkMoodWord, toneFromPixels: bkToneFromPixels, _test: { pickBest: bkPickBest, fetchCategory: bkFetchCategory, fetchAll: bkFetchAll, cache: function () { return bkMockupCache; }, usedUrls: function () { return bkUsedUrls; }, downloadImage: bkDownloadImage, buildPackage: bkBuildMusePackage, hashStr: bkHashStr, realisticScore: bkRealisticScore, panelVersion: bkPanelVersion, licenseKeyHead: bkLicenseKeyHead } };
+  global.BrandKitStudio = { brandPreviewSVG: brandPreviewSVG, rgbToCmykStr: rgbToCmykStr, mockupCatalog: BK_MOCKUPS, templateZones: BK_TEMPLATE_ZONES, suggestTemplate: bkSuggestTemplate, moodWord: bkMoodWord, toneFromPixels: bkToneFromPixels, _test: { pickBest: bkPickBest, fetchCategory: bkFetchCategory, fetchAll: bkFetchAll, cache: function () { return bkMockupCache; }, usedUrls: function () { return bkUsedUrls; }, downloadImage: bkDownloadImage, buildPackage: bkBuildMusePackage, hashStr: bkHashStr, realisticScore: bkRealisticScore, panelVersion: bkPanelVersion, licenseKeyHead: bkLicenseKeyHead, transmitPackage: bkTransmitMusePackage, licenseKeyFull: bkLicenseKeyFull } };
 })(typeof window !== "undefined" ? window : globalThis);
