@@ -23,6 +23,6 @@
     "host/index.jsx",
     "CSXS/manifest.xml"
   ],
-  "notes": "Cube logo made bigger: tighter viewBox + larger svg in the tile (header 24px, auth 34px), thinner stroke so the faces dominate.",
-  "version": "17.7.10"
+  "notes": "New logo: isometric cube with a thin teal ring around it (40x40 mark), header refreshed. Seal Maker letter-by-letter inner text included.",
+  "version": "17.7.11"
 }
