@@ -113,6 +113,7 @@
 
     function rgbStr(hex) { var c = hexToRgb(hex); return "RGB(" + c.r + ", " + c.g + ", " + c.b + ")"; }
     function readPlan() {
+      var elTpl = document.getElementById("bkTemplate");
       var elAcc = document.getElementById("bkAccent");
       var elStory = document.getElementById("bkStory");
       var elMiss = document.getElementById("bkMission");
@@ -125,6 +126,7 @@
       var dk = elDark.value || "#0b1120";
       var lt = (elLight && elLight.value) ? elLight.value : "#f8fafc";
       return {
+        templateStyle: elTpl ? elTpl.value : "bento_dark",
         brandName: elName.value.trim() || "DESIGN360N",
         tagline: elTag.value.trim() || "Crafted with Precision",
         story: elStory ? elStory.value.trim() : "Built to deliver modern, memorable design systems.",

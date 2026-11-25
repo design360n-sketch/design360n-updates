@@ -25,6 +25,6 @@
     "client/js/bento-grid.js",
     "client/js/brand-kit.js"
   ],
-  "notes": "NEW: Bento Grid System + Brand Identity Kit Studio (10 sections); Apparel 3D photorealistic 2D-to-3D ghost-mannequin relief engine (tee_front/back textures). NOTE: the two tee PNGs are NOT in the update file list — the updater downloads text only (r.text + utf8 write), so binary PNGs would corrupt/fail the whole update; they ship inside the Drive ZIP for fresh installs, and updaters fall back gracefully to the procedural mesh. (updateSizeHud call removed again before release: still undefined in this ZIP.)",
-  "version": "17.7.21"
+  "notes": "Brand Kit Pro: 5 presentation template styles (Bento Dark, Swiss Minimal Corporate, Warm Editorial, Bold Retail, 10-artboard Brand Book) — single 1200x1950 Behance/agency sheets. NOTE: the ZIP also ships its own version-workstation.json with only 12 files and the two tee PNGs listed — NOT used; the live manifest keeps the full 22-file list (PNGs still excluded: updater is text-only). (updateSizeHud call removed again before release: still undefined in this ZIP.)",
+  "version": "17.7.22"
 }

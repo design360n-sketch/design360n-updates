@@ -3146,6 +3146,282 @@ function dmGenerateBrandKitAI(payloadJSON) {
             for (var si = 0; si < srcDoc.selection.length; si++) srcSel.push(srcDoc.selection[si]);
         }
 
+        var tpl = String(p.templateStyle || "book_10");
+        if (tpl !== "book_10") {
+            // SINGLE VERTICAL BEHANCE / AGENCY PRESENTATION BRAND SHEET (1200 x 1950 px)
+            var W = 1200, H = 1950;
+            var dpB = new DocumentPreset();
+            dpB.width = W; dpB.height = H; dpB.units = RulerUnits.Pixels; dpB.colorMode = DocumentColorSpace.RGB;
+            dpB.title = (p.brandName || "Brand") + "_Brand_Sheet_" + tpl;
+            var docB = app.documents.addDocument(DocumentColorSpace.RGB, dpB);
+            docB.artboards[0].artboardRect = [0, H, W, 0];
+            docB.artboards[0].name = "Brand_Presentation_Sheet";
+
+            var lyrB = docB.layers[0]; lyrB.name = "Brand_Sheet";
+            var seedB = null;
+            if (srcSel.length > 0) {
+                try {
+                    seedB = lyrB.groupItems.add(); seedB.name = "_LogoSeed";
+                    for (var sb = 0; sb < srcSel.length; sb++) srcSel[sb].duplicate(seedB, ElementPlacement.PLACEATEND);
+                } catch (eSb) { seedB = null; }
+            }
+
+            var cP = dmHexToRGBColor(p.primary || "#2ed3a3");
+            var cS = dmHexToRGBColor(p.secondary || "#0ea5e9");
+            var cA = dmHexToRGBColor(p.accent || "#f59e0b");
+            var cDk = dmHexToRGBColor(p.dark || "#0b1120");
+            var cCream = dmHexToRGBColor("#F7F2E9");
+            var cWhite = dmHexToRGBColor("#ffffff");
+            var cMuted = dmHexToRGBColor("#94a3b8");
+            var fT = dmFindTextFont(p.titleFont || "Montserrat") || dmFindTextFont("Arial Bold") || dmFindTextFont("Arial");
+            var fB = dmFindTextFont(p.bodyFont || "Arial") || fT;
+            var bn = String(p.brandName || "DESIGN360N").toUpperCase();
+            var g = lyrB.groupItems.add(); g.name = "Brand_Sheet_" + tpl;
+
+            function bx(x, yTop, w, h, fc, sc, sw, rad) {
+                var r = (rad && rad > 0) ? g.pathItems.roundedRectangle(yTop, x, w, h, rad, rad) : g.pathItems.rectangle(yTop, x, w, h);
+                if (fc) { r.filled = true; r.fillColor = fc; } else r.filled = false;
+                if (sc) { r.stroked = true; r.strokeColor = sc; r.strokeWidth = sw || 1; } else r.stroked = false;
+                return r;
+            }
+            function tx(s, x, yTop, sz, col, fO, ctr) {
+                var tf = g.textFrames.add(); tf.contents = String(s || "");
+                var ca = tf.textRange.characterAttributes; ca.size = Math.max(6, sz); ca.fillColor = col;
+                if (fO) { try { ca.textFont = fO; } catch (e) {} }
+                try { tf.textRange.paragraphAttributes.justification = ctr ? Justification.CENTER : Justification.LEFT; } catch (e) {}
+                tf.position = [ctr ? (x - tf.width / 2) : x, yTop];
+                return tf;
+            }
+            function lg(cx, cy, mw, mh) {
+                if (seedB && seedB.pageItems.length > 0) {
+                    var du = seedB.duplicate(g, ElementPlacement.PLACEATEND);
+                    var gb = du.geometricBounds;
+                    var lw = Math.max(1, gb[2] - gb[0]), lh = Math.max(1, gb[1] - gb[3]);
+                    var sc = Math.min(mw / lw, mh / lh) * 100;
+                    du.resize(sc, sc, true, true, true, true, sc, Transformation.CENTER);
+                    var gb2 = du.geometricBounds;
+                    du.translate(cx - (gb2[0] + gb2[2]) / 2, cy - (gb2[1] + gb2[3]) / 2);
+                    return du;
+                }
+                var sz = Math.min(mw, mh);
+                bx(cx - sz / 2, cy + sz / 2, sz, sz, cP, null, 0, sz * 0.24);
+                tx(bn.substring(0, 2), cx, cy + sz * 0.20, sz * 0.42, cDk, fT, true);
+                return null;
+            }
+
+            if (tpl === "bento_dark") {
+                // Style 1: Crave & Co. / Vigio Dark Bento Brand Sheet (Rounded 26px Cards on Obsidian)
+                bx(0, H, W, H, cDk, null, 0, 0);
+                // 1. Top Full-Width Hero Lockup Card (Primary + Secondary side-by-side)
+                bx(36, H - 36, 1128, 380, cCream, null, 0, 28);
+                lg(330, H - 220, 340, 230);
+                lg(860, H - 220, 360, 220);
+                tx("PRIMARY & SECONDARY LOGO LOCKUPS", 600, H - 386, 11, cMuted, fT, true);
+
+                // 2. Row 2: 2 Square Brand Badges (Left) + Geometric Construction Grid Card (Right)
+                bx(36, H - 440, 270, 270, cP, null, 0, 26); lg(171, H - 575, 165, 130);
+                bx(326, H - 440, 270, 270, cS, null, 0, 26); lg(461, H - 575, 165, 130);
+                // Right: Construction Grid Card (Vigio style dashed guidelines!)
+                bx(616, H - 440, 548, 270, cP, null, 0, 26);
+                for (var gx = 1; gx < 6; gx++) {
+                    var vl = g.pathItems.add(); vl.filled = false; vl.stroked = true; vl.strokeColor = cWhite; vl.strokeWidth = 0.8;
+                    try { vl.strokeDashes = [4, 4]; } catch (e) {}
+                    vl.setEntirePath([[616 + gx * 91, H - 440], [616 + gx * 91, H - 710]]);
+                }
+                for (var gy = 1; gy < 4; gy++) {
+                    var hl = g.pathItems.add(); hl.filled = false; hl.stroked = true; hl.strokeColor = cWhite; hl.strokeWidth = 0.8;
+                    try { hl.strokeDashes = [4, 4]; } catch (e) {}
+                    hl.setEntirePath([[616, H - 440 - gy * 67], [1164, H - 440 - gy * 67]]);
+                }
+                lg(890, H - 575, 280, 170);
+
+                // 3. Row 3: Typography Specimen Card (Left) + App Icon Badge Card (Right)
+                bx(36, H - 734, 680, 250, cCream, null, 0, 26);
+                tx("Aa", 80, H - 772, 118, cDk, fT, false);
+                tx((p.titleFont || "Poppins") + "\nBold & SemiBold • Clean & Modern", 285, H - 796, 17, cDk, fT, false);
+                tx("ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz  0123456789", 80, H - 918, 13, cDk, fB, false);
+
+                bx(736, H - 734, 428, 250, cWhite, null, 0, 26);
+                bx(865, H - 776, 170, 170, cP, null, 0, 38);
+                lg(950, H - 861, 105, 85);
+                // Notification red badge
+                var nb = g.pathItems.ellipse(H - 760, 1005, 42, 42); nb.filled = true; nb.fillColor = dmHexToRGBColor("#ef4444"); nb.stroked = false;
+                tx("9", 1026, H - 771, 18, cWhite, fT, true);
+
+                // 4. Row 4: 4 Pill HEX Color Swatches (Crave & Co. style!)
+                var pills = [[cP, p.primary, cDk], [cS, p.secondary, cWhite], [cCream, "#F7F2E9", cDk], [cA, p.accent, cDk]];
+                for (var pi = 0; pi < 4; pi++) {
+                    var px2 = 36 + pi * 288;
+                    bx(px2, H - 1008, 268, 92, pills[pi][0], null, 0, 46);
+                    tx(String(pills[pi][1] || "").toUpperCase(), px2 + 134, H - 1042, 18, pills[pi][2], fT, true);
+                }
+
+                // 5. Row 5: Wide Hero Wordmark Banner + Brand Story Card
+                bx(36, H - 1124, 420, 330, dmHexToRGBColor("#111b2e"), cP, 1.5, 26);
+                tx("BRAND STORY", 68, H - 1160, 13, cP, fT, false);
+                tx(bn + "\n\n" + (p.tagline || "") + "\n\n" + (p.story || ""), 68, H - 1200, 15, cWhite, fB, false);
+                bx(476, H - 1124, 688, 330, cP, null, 0, 26);
+                lg(820, H - 1280, 360, 210);
+
+                // 6. Row 6: Packaging Cup/Box Card + Die-Cut Sticker Card
+                bx(36, H - 1478, 620, 436, cCream, null, 0, 26);
+                tx("PACKAGING & MERCHANDISE", 346, H - 1510, 13, cDk, fT, true);
+                bx(110, H - 1560, 175, 280, cS, null, 0, 18); lg(197, H - 1690, 110, 85);
+                bx(330, H - 1610, 240, 230, cDk, null, 0, 16); lg(450, H - 1720, 130, 95);
+                bx(676, H - 1478, 488, 436, cS, null, 0, 26);
+                bx(760, H - 1565, 320, 240, cWhite, null, 0, 56);
+                lg(920, H - 1685, 230, 150);
+                tx("DIE-CUT STICKER & TAG", 920, H - 1865, 13, cWhite, fT, true);
+            } else if (tpl === "swiss_corp") {
+                // Style 2: Inova Brandscape Swiss Minimal Corporate Sheet (Clean White Grid)
+                bx(0, H, W, H, cWhite, null, 0, 0);
+                // Top 3-Col Row
+                bx(28, H - 28, 370, 420, cWhite, dmHexToRGBColor("#e2e8f0"), 1, 0);
+                tx("STRATEGY\nBRAND IDENTITY\nVISUAL DESIGN", 54, H - 56, 11, cMuted, fT, false);
+                lg(213, H - 235, 250, 140);
+                tx((p.tagline || "IDEAS SHAPE • BRANDS GROW").toUpperCase(), 213, H - 385, 11, cDk, fT, true);
+
+                bx(414, H - 28, 410, 420, dmHexToRGBColor("#e2e8f0"), null, 0, 0);
+                // Angled Business Card Front & Back
+                bx(460, H - 70, 310, 175, cP, null, 0, 4); lg(615, H - 155, 150, 85);
+                bx(460, H - 260, 310, 175, cWhite, cMuted, 0.5, 4);
+                tx(bn + "\n" + (p.phone || "") + "\n" + (p.email || "") + "\n" + (p.website || ""), 486, H - 295, 11, cDk, fB, false);
+
+                bx(840, H - 28, 332, 420, cP, null, 0, 0);
+                tx("BRANDS\nPEOPLE\nIDEAS\nA BRIGHTER\nTOMORROW", 884, H - 155, 16, cWhite, fT, false);
+
+                // Mid 3-Col: Typeface Specimen | App Icon | 4 Vertical Full-Bleed Color Columns
+                bx(28, H - 468, 370, 340, dmHexToRGBColor("#f8fafc"), null, 0, 0);
+                tx("PRIMARY TYPEFACE — " + (p.titleFont || "Montserrat").toUpperCase(), 54, H - 498, 10, cMuted, fT, false);
+                tx("A B C D E F G H I J K L M N\nO P Q R S T U V W X Y Z\n0 1 2 3 4 5 6 7 8 9", 54, H - 545, 14, cDk, fT, false);
+                tx("MODERN • CLEAN • VERSATILE • TIMELESS", 54, H - 720, 11, cP, fT, false);
+
+                bx(414, H - 468, 320, 340, dmHexToRGBColor("#f1f5f9"), null, 0, 0);
+                bx(504, H - 535, 140, 140, cP, null, 0, 32); lg(574, H - 605, 86, 70);
+                tx(bn, 574, H - 705, 16, cDk, fT, true);
+
+                // 4 Vertical Color Columns (Inova signature!)
+                var vCols = [[cP, "PRIMARY", p.primary, cWhite], [cS, "SECONDARY", p.secondary, cWhite], [dmHexToRGBColor("#f1f5f9"), "LIGHT", "#F1F5F9", cDk], [cDk, "DARK", p.dark, cWhite]];
+                for (var vc = 0; vc < 4; vc++) {
+                    var vx2 = 750 + vc * 106;
+                    bx(vx2, H - 468, 104, 340, vCols[vc][0], null, 0, 0);
+                    tx(vCols[vc][1] + "\n" + String(vCols[vc][2]).toUpperCase(), vx2 + 12, H - 755, 9, vCols[vc][3], fT, false);
+                }
+
+                // Applications Grid (Signboard, Tote Bag, Bottle, T-Shirt)
+                bx(28, H - 830, 560, 420, dmHexToRGBColor("#e2e8f0"), null, 0, 0);
+                tx("STOREFRONT & 3D WALL SIGNAGE", 56, H - 865, 11, cMuted, fT, false);
+                lg(308, H - 1040, 320, 180);
+
+                bx(606, H - 830, 566, 420, cP, null, 0, 0);
+                tx("MERCHANDISE & TOTE BAG", 636, H - 865, 11, cWhite, fT, false);
+                lg(889, H - 1040, 260, 180);
+
+                bx(28, H - 1270, 370, 440, cDk, null, 0, 0);
+                tx("MOBILE APP ICON", 213, H - 1305, 11, cP, fT, true);
+                bx(133, H - 1380, 160, 160, cP, null, 0, 34); lg(213, H - 1460, 95, 80);
+
+                bx(414, H - 1270, 370, 440, dmHexToRGBColor("#f1f5f9"), null, 0, 0);
+                tx("BOTTLE PACKAGING", 599, H - 1305, 11, cDk, fT, true);
+                bx(534, H - 1370, 130, 290, cP, null, 0, 26); lg(599, H - 1510, 88, 65);
+
+                bx(800, H - 1270, 372, 440, cS, null, 0, 0);
+                tx("STAFF APPAREL TEE", 986, H - 1305, 11, cWhite, fT, true);
+                lg(986, H - 1490, 180, 120);
+
+                // Clean Editorial Footer
+                bx(0, H - 1750, W, 200, cWhite, null, 0, 0);
+                tx("Branding for\nwhat's next.", 48, H - 1795, 34, cDk, fT, false);
+                tx("STRATEGY  •  IDENTITY  •  DESIGN  •  IMPACT", 560, H - 1845, 11, cMuted, fT, true);
+                lg(1010, H - 1845, 180, 90);
+            } else if (tpl === "editorial_warm") {
+                // Style 3: Carlam Warm Editorial Brand Sheet (Cream Hero, 3-Col Strip, 5 Circular Swatches, Full-Width Type Bar)
+                bx(0, H, W, H, cCream, null, 0, 0);
+                tx("PRIMARY LOGO", 600, H - 40, 14, cDk, fT, true);
+                lg(600, H - 235, 520, 280);
+
+                // 3-Column Strip: Logotype | Brandmark | Submark
+                bx(0, H - 440, 400, 340, cP, null, 0, 0); tx("LOGOTYPE", 200, H - 472, 13, cWhite, fT, true); lg(200, H - 620, 240, 140);
+                bx(400, H - 440, 400, 340, cCream, null, 0, 0); tx("BRANDMARK", 600, H - 472, 13, cDk, fT, true); lg(600, H - 620, 210, 160);
+                bx(800, H - 440, 400, 340, cDk, null, 0, 0); tx("SUBMARK", 1000, H - 472, 13, cCream, fT, true); lg(1000, H - 620, 210, 160);
+
+                // 5 Circular Color Swatches Row
+                tx("COLOR PALETTE", 600, H - 822, 16, cDk, fT, true);
+                var circs = [[cP, "Primary", p.primary], [cCream, "Cream", "#F7F2E9"], [cA, "Accent", p.accent], [cS, "Secondary", p.secondary], [cDk, "Dark Base", p.dark]];
+                for (var cc = 0; cc < 5; cc++) {
+                    var cxC = 140 + cc * 230;
+                    var ell = g.pathItems.ellipse(H - 870, cxC - 68, 136, 136);
+                    ell.filled = true; ell.fillColor = circs[cc][0];
+                    ell.stroked = (cc === 1); if (cc === 1) { ell.strokeColor = cMuted; ell.strokeWidth = 1; }
+                    tx(circs[cc][1] + "\n" + String(circs[cc][2]).toUpperCase(), cxC, H - 1022, 12, cDk, fT, true);
+                }
+
+                // Full-Width Primary Typography Bar (Dual Aa)
+                bx(0, H - 1100, W, 250, cP, null, 0, 0);
+                tx("TYPOGRAPHY", 600, H - 1126, 15, cWhite, fT, true);
+                tx("Aa", 110, H - 1170, 96, cWhite, fT, false);
+                tx((p.titleFont || "Montserrat") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz", 285, H - 1192, 13, cWhite, fT, false);
+                tx("Aa", 680, H - 1170, 96, cWhite, fB, false);
+                tx((p.bodyFont || "Arial") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n0123456789 !@#$%", 845, H - 1192, 13, cWhite, fB, false);
+
+                // Bottom Application Grid
+                bx(36, H - 1390, 540, 520, cWhite, cMuted, 0.6, 14);
+                tx(bn + "\n" + (p.tagline || ""), 70, H - 1430, 26, cDk, fT, false);
+                lg(306, H - 1660, 280, 190);
+                bx(600, H - 1390, 564, 245, cDk, null, 0, 14);
+                tx("SIGNBOARD & STOREFRONT", 882, H - 1420, 12, cA, fT, true);
+                lg(882, H - 1525, 240, 130);
+                bx(600, H - 1660, 270, 250, cWhite, cMuted, 0.6, 14);
+                lg(735, H - 1745, 140, 90);
+                tx((p.address || "") + "\n" + (p.phone || ""), 735, H - 1835, 10, cDk, fB, true);
+                bx(894, H - 1660, 270, 250, cA, null, 0, 14);
+                lg(1029, H - 1775, 150, 110);
+                tx("UNIFORM / APRON", 1029, H - 1865, 11, cDk, fT, true);
+            } else {
+                // Style 4: Break Bold Retail & Pattern Sheet (Vibrant Hero + 3 Pill Lockups + Pattern Footer Strip)
+                bx(0, H, W, H, cCream, null, 0, 0);
+                bx(0, H, W, 520, cP, null, 0, 0);
+                lg(600, H - 200, 480, 240);
+                // 3 Pill Logo Variations inside hero
+                bx(140, H - 370, 280, 105, cP, cWhite, 2, 52); lg(280, H - 422, 160, 70);
+                bx(460, H - 370, 280, 105, cDk, null, 0, 52); lg(600, H - 422, 160, 70);
+                bx(780, H - 370, 280, 105, cCream, null, 0, 52); lg(920, H - 422, 160, 70);
+
+                // Mid Row: Color Palette (3 Vertical Rounded Cards) + Typography Aa
+                bx(48, H - 560, 190, 32, cP, null, 0, 10); tx("COLOR PALETTE", 143, H - 569, 12, cWhite, fT, true);
+                var rSw = [[cP, "PRIMARY", p.primary], [cS, "SECONDARY", p.secondary], [cDk, "DARK TONE", p.dark]];
+                for (var rs = 0; rs < 3; rs++) {
+                    var rxS = 48 + rs * 175;
+                    bx(rxS, H - 610, 155, 185, rSw[rs][0], null, 0, 14);
+                    tx(rSw[rs][1] + "\n" + String(rSw[rs][2]).toUpperCase(), rxS + 77, H - 812, 11, cDk, fT, true);
+                }
+                bx(620, H - 560, 190, 32, cP, null, 0, 10); tx("TYPOGRAPHY", 715, H - 569, 12, cWhite, fT, true);
+                tx("Aa", 620, H - 620, 125, cP, fT, false);
+                tx("PRIMARY FONT\n" + (p.titleFont || "Poppins Bold") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n0123456789", 830, H - 638, 13, cDk, fT, false);
+
+                // Application 2x3 Grid (Cup, Shopping Bag, Round Sign, Drawer Box, Sticker)
+                bx(0, H - 900, 400, 390, cCream, null, 0, 0); bx(115, H - 970, 170, 230, cP, null, 0, 18); lg(200, H - 1085, 115, 80); tx("CUP PACKAGING", 200, H - 1235, 12, cDk, fT, true);
+                bx(400, H - 900, 400, 390, cP, null, 0, 0); bx(490, H - 970, 220, 240, cCream, null, 0, 10); lg(600, H - 1085, 130, 90); tx("SHOPPING BAG", 600, H - 1235, 12, cWhite, fT, true);
+                bx(800, H - 900, 400, 390, cDk, null, 0, 0);
+                var rsEl = g.pathItems.ellipse(H - 960, 880, 240, 240); rsEl.filled = true; rsEl.fillColor = cP; rsEl.stroked = true; rsEl.strokeColor = cWhite; rsEl.strokeWidth = 4;
+                lg(1000, H - 1080, 150, 105); tx("ROUND SIGNAGE", 1000, H - 1235, 12, cWhite, fT, true);
+
+                bx(0, H - 1290, 600, 380, cS, null, 0, 0); bx(140, H - 1355, 320, 220, cP, null, 0, 14); lg(300, H - 1465, 180, 110); tx("PACKAGING BOX", 300, H - 1615, 13, cWhite, fT, true);
+                bx(600, H - 1290, 600, 380, cDk, null, 0, 0); bx(740, H - 1355, 320, 220, cCream, null, 0, 48); lg(900, H - 1465, 190, 120); tx("BRAND STICKER", 900, H - 1615, 13, cWhite, fT, true);
+
+                // Seamless Brand Pattern Footer Strip!
+                bx(0, H - 1670, W, 280, cP, null, 0, 0);
+                for (var pf = 0; pf < 6; pf++) {
+                    lg(100 + pf * 200, H - 1755, 90, 65);
+                    lg(190 + pf * 200, H - 1870, 80, 58);
+                }
+            }
+
+            if (seedB) { try { seedB.remove(); } catch (eR) {} }
+            try { app.executeMenuCommand("fitinwindow"); } catch (eF) {}
+            return "OK:Generated Vertical Behance Brand Sheet (" + tpl + (srcSel.length > 0 ? " • Your Logo Applied!" : "") + ")!";
+        }
+
         // All 10 Complete Agency Branding Checklist Artboards (1920x1080 presentation / print-ready boards)
         var specs = [];
         if (inc.bkSec1 !== false)  specs.push(["01_Brand_Strategy", 1280, 720, "sec1"]);
