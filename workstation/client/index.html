@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Design360n Workstation v17.7.1 — Illustrator Extension</title>
+  <title>Design360n Workstation v17.7.2 — Illustrator Extension</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -24,7 +24,7 @@
       <div class="brand">
         <div class="brand-icon">D3</div>
         <div>
-          <div class="brand-title">Design360n Workstation <span style="font-size:10px;color:#3bcdca;">v17.7.1</span></div>
+          <div class="brand-title">Design360n Workstation <span style="font-size:10px;color:#3bcdca;">v17.7.2</span></div>
           <div class="brand-sub">Packaging • 3D T-Shirt • Stroke AI</div>
         </div>
       </div>
@@ -82,11 +82,16 @@
             <div class="field"><label>Height (H)</label><input id="dimH" type="number" step="0.5" min="10" value="130" /></div>
           </div>
 
+          <div class="adv">
+            <button type="button" class="adv-toggle" aria-expanded="false"><span>Board, glue flap & bleed</span><span class="adv-chev">▾</span></button>
+            <div class="adv-body">
           <div class="grid-4" style="margin-top:6px;">
             <div class="field"><label>Board (t)</label><input id="dimT" type="number" step="0.1" min="0.1" value="0.4" /></div>
             <div class="field"><label>Glue Flap</label><input id="dimGlue" type="number" step="0.5" min="0" value="14" /></div>
             <div class="field"><label>Tuck / Top</label><input id="dimTuck" type="number" step="0.5" min="0" value="16" /></div>
             <div class="field"><label>Bleed</label><input id="dimBleed" type="number" step="0.5" min="0" value="3" /></div>
+          </div>
+            </div>
           </div>
 
           <div id="customOptions" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.14);">
@@ -149,6 +154,9 @@
             </div>
             <input id="foldSlider" type="range" min="0" max="100" value="100" />
           </div>
+          <div class="adv">
+            <button type="button" class="adv-toggle" aria-expanded="false"><span>More 3D exports</span><span class="adv-chev">▾</span></button>
+            <div class="adv-body">
           <div class="grid-3" style="margin-top:8px;">
             <button id="btnQuickPNG" class="btn btn-primary btn-sm">HD 1600px PNG</button>
             <button id="btnQuickFoldVideo" class="btn btn-primary btn-sm">2D→3D Video</button>
@@ -158,8 +166,13 @@
             <button id="btnQuickOBJ" class="btn btn-sm">Download 3D .OBJ</button>
             <button id="btnQuickHTML" class="btn btn-sm">3D HTML Viewer</button>
           </div>
+            </div>
+          </div>
         </div>
 
+        <div class="adv">
+          <button type="button" class="adv-toggle" aria-expanded="false"><span>Camera angles</span><span class="adv-chev">▾</span></button>
+          <div class="adv-body">
         <div class="card">
           <div class="card-title">Camera Angles</div>
           <div class="grid-4">
@@ -171,6 +184,8 @@
             <button class="btn btn-sm angle-btn" data-angle="right">Right</button>
             <button class="btn btn-sm angle-btn" data-angle="top">Top</button>
             <button class="btn btn-sm angle-btn" data-angle="flat">Flat Open</button>
+          </div>
+        </div>
           </div>
         </div>
 
@@ -201,6 +216,9 @@
             <label>Custom Board Color</label>
             <input id="customColor" type="color" value="#3bcdca" style="height:28px;width:100%;border:none;background:transparent;cursor:pointer;" />
           </div>
+          <div class="adv">
+            <button type="button" class="adv-toggle" aria-expanded="false"><span>Artwork, mapping & sync</span><span class="adv-chev">▾</span></button>
+            <div class="adv-body">
           <div class="field" style="margin-top:6px;">
             <label>Design → 3D Mapping Mode</label>
             <select id="texModeSelect">
@@ -220,6 +238,8 @@
             <label><input type="checkbox" id="wireframeToggle" /> Wireframe</label>
             <button id="btnClearArt" class="btn btn-sm" style="padding:3px 7px;">Clear Artwork</button>
           </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -231,9 +251,14 @@
             <button id="btnExportPNG" class="btn btn-primary">HD PNG (1600×1600)</button>
             <button id="btnExportMultiPNG" class="btn">4-Angle PNG Pack</button>
           </div>
+          <div class="adv">
+            <button type="button" class="adv-toggle" aria-expanded="false"><span>More downloads (.OBJ, 3D viewer)</span><span class="adv-chev">▾</span></button>
+            <div class="adv-body">
           <div class="grid-2" style="margin-top:8px;">
             <button id="btnExportOBJ" class="btn">3D Model (.OBJ for Blender)</button>
             <button id="btnExport3DHTML" class="btn">Client 3D Viewer (.HTML)</button>
+          </div>
+            </div>
           </div>
           <p style="color:#94a3b8;font-size:10.5px;margin-top:8px;">
             Tip: Switch Background to <b>Transparent</b> in Tab 2 before downloading PNGs for clean e-commerce / Photoshop mockups.
@@ -300,6 +325,9 @@
               <button id="btnClipMask" class="btn btn-primary btn-sm"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2"/><circle cx="15" cy="15" r="6"/></svg><span>Clip into Shape</span></button>
               <button id="btnReleaseMask" class="btn btn-sm"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg><span>Release Mask</span></button>
             </div>
+            <div class="adv">
+              <button type="button" class="adv-toggle" aria-expanded="false"><span>More layout tools</span><span class="adv-chev">▾</span></button>
+              <div class="adv-body">
             <div class="grid-2" style="margin-top:7px;">
               <button id="btnClipBleed" class="btn btn-sm"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg><span>Clip to Bleed</span></button>
               <button id="btnSwatchCard" class="btn btn-sm"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg><span>Color Swatches</span></button>
@@ -309,8 +337,13 @@
               <button id="btnFitAB" class="btn btn-sm">Fit to Artboard</button>
               <button id="btnSafeGuides" class="btn btn-sm">5mm Safe Guides</button>
             </div>
+              </div>
+            </div>
           </div>
 
+          <div class="adv">
+            <button type="button" class="adv-toggle" aria-expanded="false"><span>Packaging icons</span><span class="adv-chev">▾</span></button>
+            <div class="adv-body">
           <div class="card">
             <div class="card-title">Insert Vector Packaging Icons (Illustrator)</div>
             <div class="grid-4">
@@ -318,6 +351,8 @@
               <button class="btn btn-sm icon-btn" data-icon="keep_dry">Keep Dry</button>
               <button class="btn btn-sm icon-btn" data-icon="this_side_up">Side Up</button>
               <button class="btn btn-sm icon-btn" data-icon="recycle">Recycle</button>
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -333,6 +368,9 @@
               <label>URL, WhatsApp, Wi-Fi, Phone or Text</label>
               <input id="qrValue" type="text" value="https://design360n.com" placeholder="https://yourwebsite.com or text..." />
             </div>
+            <div class="adv">
+              <button type="button" class="adv-toggle" aria-expanded="false"><span>QR size, style & presets</span><span class="adv-chev">▾</span></button>
+              <div class="adv-body">
             <div class="grid-4" style="margin-bottom:7px;">
               <button type="button" class="btn btn-sm qr-preset" data-qr="https://design360n.com">Website</button>
               <button type="button" class="btn btn-sm qr-preset" data-qr="https://wa.me/8801700000000">WhatsApp</button>
@@ -349,6 +387,8 @@
                 </select>
               </div>
               <div class="field"><label>Color</label><input id="qrColor" type="color" value="#000000" style="height:28px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+            </div>
+              </div>
             </div>
             <div id="qrPreview" style="background:#ffffff;border-radius:7px;padding:8px;height:132px;display:flex;align-items:center;justify-content:center;margin:8px 0;"></div>
             <div class="grid-2">
@@ -460,16 +500,24 @@
               <div class="field" style="margin-bottom:0;"><label>Header Style</label><select id="calStyle"></select></div>
             </div>
 
+            <div class="adv">
+              <button type="button" class="adv-toggle" aria-expanded="false"><span>Calendar size</span><span class="adv-chev">▾</span></button>
+              <div class="adv-body">
             <div class="grid-3" style="margin-bottom:6px;">
               <div class="field" style="margin-bottom:0;"><label>Size Preset</label><select id="calSizePreset"></select></div>
               <div class="field" style="margin-bottom:0;"><label>Width (mm)</label><input id="calWidthMm" type="number" min="40" max="1500" value="210" /></div>
               <div class="field" style="margin-bottom:0;"><label>Height (mm)</label><input id="calHeightMm" type="number" min="40" max="1500" value="297" /></div>
+            </div>
+              </div>
             </div>
 
             <div style="display:flex;align-items:center;gap:4px;margin:4px 0 4px;">
               <input id="calFontFilter" type="text" placeholder="Search fonts (e.g. Sutonny, Li, Hind)..." style="flex:1;padding:3px 6px;font-size:10px;" />
               <button type="button" id="btnCalLoadFonts" class="btn btn-sm" style="padding:3px 8px;font-size:10px;white-space:nowrap;">Sync Fonts</button>
             </div>
+            <div class="adv">
+              <button type="button" class="adv-toggle" aria-expanded="false"><span>Fonts</span><span class="adv-chev">▾</span></button>
+              <div class="adv-body">
             <div class="grid-2" style="margin-bottom:5px;">
               <div class="field" style="margin-bottom:0;"><label>1. Title / Month Font</label><select id="calTitleFont"></select></div>
               <div class="field" style="margin-bottom:0;"><label>2. Weekday Font</label><select id="calDowFont"></select></div>
@@ -478,22 +526,34 @@
               <div class="field" style="margin-bottom:0;"><label>3. Big Date Font</label><select id="calFont"></select></div>
               <div class="field" style="margin-bottom:0;"><label>4. Bangla Sub-Date Font</label><select id="calBnSubFont"></select></div>
             </div>
+              </div>
+            </div>
 
             <div class="grid-3" style="margin-bottom:6px;">
               <div class="field" style="margin-bottom:0;">
                 <label>Week Start &amp; Wknd</label>
+                <div class="adv">
+                  <button type="button" class="adv-toggle" aria-expanded="false"><span>Week & text size</span><span class="adv-chev">▾</span></button>
+                  <div class="adv-body">
                 <div class="grid-2" style="gap:3px;">
                   <select id="calWeekStart"><option value="0" selected>Sun</option><option value="1">Mon</option><option value="6">Sat</option></select>
                   <select id="calWeekend"><option value="fri_sat" selected>Fri-Sat</option><option value="sat_sun">Sat-Sun</option><option value="fri_only">Fri</option><option value="sun_only">Sun</option></select>
+                </div>
+                  </div>
                 </div>
               </div>
               <div class="field" style="margin-bottom:0;"><label>Big Date pt (0=Auto)</label><input id="calBigPt" type="number" min="0" max="120" value="0" /></div>
               <div class="field" style="margin-bottom:0;"><label>Small pt (0=Auto)</label><input id="calSmallPt" type="number" min="0" max="60" value="0" /></div>
             </div>
+            <div class="adv">
+              <button type="button" class="adv-toggle" aria-expanded="false"><span>Colors</span><span class="adv-chev">▾</span></button>
+              <div class="adv-body">
             <div class="grid-3" style="margin-bottom:6px;">
               <div class="field" style="margin-bottom:0;"><label>Accent</label><input id="calAccent" type="color" value="#0ea5e9" style="height:24px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
               <div class="field" style="margin-bottom:0;"><label>Text</label><input id="calTextCol" type="color" value="#111827" style="height:24px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
               <div class="field" style="margin-bottom:0;"><label>Weekend</label><input id="calWkndCol" type="color" value="#e11d48" style="height:24px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
+            </div>
+              </div>
             </div>
 
             <div id="calPreview" class="preview-box" style="height:190px;background:#ffffff;padding:6px;margin:7px 0;"></div>
@@ -505,6 +565,9 @@
             <button id="btnGenCalAI" class="btn btn-primary" style="width:100%;margin-bottom:6px;">
               Generate Editable Calendar in Illustrator (Live Text)
             </button>
+            <div class="adv">
+              <button type="button" class="adv-toggle" aria-expanded="false"><span>Bangla setup (one-time)</span><span class="adv-chev">▾</span></button>
+              <div class="adv-body">
             <div class="grid-3" style="margin-bottom:5px;">
               <button id="btnCalFixBangla" class="btn btn-sm" title="Enable Show Indic Options & open Paragraph panel">1. Indic Fix</button>
               <button id="btnCalSaveUniBase" class="btn btn-sm" title="Save selected fixed Bangla text so all future Unicode calendars work 100% auto!">2. Save Auto-Uni</button>
@@ -512,6 +575,8 @@
             </div>
             <div style="font-size:10px;color:#94a3b8;line-height:1.35;">
               <b>Auto-Unicode Setup (1-Time):</b> Select any fixed Bangla text (Paragraph → <i>Middle Eastern &amp; South Asian Composer</i>) &amp; click <b>Save Auto-Uni</b>. After that, every Unicode calendar auto-fixes forever!
+            </div>
+              </div>
             </div>
           </div>
         </div>
@@ -646,6 +711,9 @@
             </div>
           </div>
 
+          <div class="adv">
+            <button type="button" class="adv-toggle" aria-expanded="false"><span>Fine-tune</span><span class="adv-chev">▾</span></button>
+            <div class="adv-body">
           <div class="grid-2" style="margin-top:6px;">
             <div class="field">
               <label>Threshold: <span id="strokeThreshVal">165</span></label>
@@ -675,6 +743,8 @@
           <div class="checkbox-row">
             <label><input id="strokeKeepOpen" type="checkbox" /> Keep generated .AI docs open in Illustrator</label>
           </div>
+            </div>
+          </div>
         </div>
 
         <div class="card">
@@ -687,6 +757,9 @@
             <button id="btnStrokeSingleAI" class="btn btn-primary btn-sm">Open in Illustrator</button>
             <button id="btnStrokeSingleSVG" class="btn btn-sm">Save Preview SVG</button>
           </div>
+          <div class="adv">
+            <button type="button" class="adv-toggle" aria-expanded="false"><span>Polish & rebuild</span><span class="adv-chev">▾</span></button>
+            <div class="adv-body">
           <button id="btnPenToolRebuild" class="btn btn-primary btn-sm" style="width:100%;margin-top:6px;">
             Pen-Tool Rebuild Selected (4-Pt Circles • 0/45/90° Snap • Smooth Beziers)
           </button>
@@ -696,6 +769,8 @@
             <button id="btnFillsToStrokes" class="btn btn-sm">Fills → Strokes</button>
           </div>
           <button id="btnVecToCenterStroke" class="btn btn-sm" style="width:100%;margin-top:6px;">
+            </div>
+          </div>
             Selected Filled Vector → Auto Centerline Stroke
           </button>
         </div>
@@ -779,12 +854,17 @@
             <input id="apparelQuickText" type="text" value="DESIGN360N" placeholder="Text to add..." style="flex:1;" />
             <input id="apparelQuickColor" type="color" value="#f8f5ef" style="width:34px;height:28px;border:none;background:transparent;cursor:pointer;" />
           </div>
+          <div class="adv">
+            <button type="button" class="adv-toggle" aria-expanded="false"><span>Layers</span><span class="adv-chev">▾</span></button>
+            <div class="adv-body">
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:5px;">
             <button id="btnLayerDup" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Duplicate</button>
             <button id="btnLayerFlip" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Flip H</button>
             <button id="btnLayerRot" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Rotate 45°</button>
             <button id="btnLayerDel" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Delete</button>
             <button id="btnApparelClearArt" class="btn btn-sm" style="padding:4px 2px;font-size:10px;">Clear All</button>
+          </div>
+            </div>
           </div>
 
           <div class="grid-2" style="margin-top:7px;">
@@ -809,6 +889,9 @@
               <div class="field"><label>Sleeves</label><input id="apparelSleeveColor" type="color" value="#7a1c1c" style="height:26px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
               <div class="field"><label>Collar Rib</label><input id="apparelCollarColor" type="color" value="#5e1515" style="height:26px;width:100%;border:none;background:transparent;cursor:pointer;" /></div>
             </div>
+            <div class="adv">
+              <button type="button" class="adv-toggle" aria-expanded="false"><span>Fabric & label details</span><span class="adv-chev">▾</span></button>
+              <div class="adv-body">
             <div class="checkbox-row">
               <label><input id="apparelSplitSleeve" type="checkbox" /> Contrast Sleeves</label>
               <label><input id="apparelShowLabel" type="checkbox" checked /> Neck Label</label>
@@ -831,6 +914,8 @@
               <div class="field"><label>Fold Shadows</label><input id="apparelFoldShadow" type="range" min="0" max="1.2" step="0.05" value="0.65" /></div>
             </div>
             <div class="field" style="margin-top:4px;"><label>Care / Origin</label><input id="apparelLabelMeta" type="text" value="100% COTTON • MADE IN BANGLADESH" /></div>
+              </div>
+            </div>
           </div>
 
           <div id="bottleLookBox" style="display:none;">
@@ -892,5 +977,6 @@
   <script src="js/stroke-ui.js"></script>
   <script src="js/apparel3d.js"></script>
   <script src="js/apparel-ui.js"></script>
+  <script src="js/easy-ui.js"></script>
 </body>
 </html>

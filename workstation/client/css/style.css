@@ -267,3 +267,66 @@ input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer;
   background: rgba(59, 205, 202, 0.08); font-size: 12px;
 }
 .upd-banner.show { display: flex; }
+
+/* ---------------- EASY UI (v17.7.2): bigger, calmer, progressive disclosure ---------------- */
+/* Same dark teal look — just roomier type, bigger targets, and collapsed Advanced sections. */
+body { font-size: 13.5px; line-height: 1.5; }
+
+.header { padding: 11px 14px; }
+.brand-title { font-size: 14px; }
+.brand-sub { font-size: 11px; }
+.status-pill { font-size: 11px; padding: 4px 11px; }
+
+/* Compact one-line update banner */
+.upd-banner { margin: 8px 12px 0; padding: 7px 12px; font-size: 12.5px; gap: 8px; }
+
+.tabs { padding: 7px 8px; gap: 6px; }
+.tab-btn { font-size: 12px; padding: 10px 4px; gap: 4px; }
+.tab-btn .ui-ico { width: 16px; height: 16px; }
+.subtabs { padding: 5px; gap: 5px; }
+.subtab-btn { font-size: 12px; padding: 9px 6px; }
+
+.content { padding: 14px 14px 20px; gap: 14px; }
+.tab-pane { gap: 14px; }
+.pro-section { gap: 14px; }
+
+.card { padding: 15px 16px; }
+.card-title { font-size: 12px; margin-bottom: 10px; }
+
+.field { gap: 5px; margin-bottom: 10px; }
+label { font-size: 12px; }
+
+select, input[type="number"], input[type="text"], input[type="password"] {
+  padding: 9px 11px; font-size: 13px; min-height: 38px;
+}
+
+.btn { padding: 10px 14px; font-size: 13px; min-height: 40px; border-radius: 8px; }
+.btn-sm { padding: 8px 11px; font-size: 12px; min-height: 34px; }
+.btn-primary { font-size: 14px; padding: 12px 16px; min-height: 46px; }
+
+.checkbox-row label { font-size: 12.5px; }
+.legend-bar { font-size: 11px; }
+.kpi-label { font-size: 10.5px; }
+.kpi-val { font-size: 14px; }
+.preflight-box { font-size: 12px; }
+.log-box { font-size: 11px; }
+.toast { font-size: 12.5px; }
+
+/* One obvious hero action per tab (by id only — no class or logic changes) */
+#btnGenerateAI, #btnExportPNG, #btnGenCalAI, #btnStrokeStartBatch, #btnApparelGenPattern {
+  width: 100%; min-height: 50px; font-size: 15px; border-radius: 10px;
+}
+
+/* Advanced / Aro settings — collapsed by default; everything stays one click away */
+.adv { border: 1px dashed rgba(148, 163, 184, 0.28); border-radius: 9px; margin-top: 10px; overflow: hidden; }
+.adv-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: transparent; border: none; cursor: pointer; text-align: left;
+  color: var(--accent); font-size: 13px; font-weight: 600; font-family: inherit;
+  padding: 10px 12px; min-height: 40px;
+}
+.adv-toggle:hover { background: rgba(59, 205, 202, 0.06); }
+.adv-toggle .adv-chev { font-size: 12px; transition: transform 0.18s ease; flex-shrink: 0; }
+.adv.open .adv-toggle .adv-chev { transform: rotate(180deg); }
+.adv-body { display: none; padding: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.22); }
+.adv.open .adv-body { display: block; }
