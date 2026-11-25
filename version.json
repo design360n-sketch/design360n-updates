@@ -1,6 +1,6 @@
 {
-  "version": "2.79",
-  "notes": "Logo SVG now carries fixed width/height so it cannot render squashed",
+  "version": "2.80",
+  "notes": "Cube logo redrawn: high-contrast faces (white top, mint left, dark right) so it reads as a cube at panel size",
   "baseUrl": "https://raw.githubusercontent.com/design360n-sketch/design360n-updates/main/",
   "downloadUrl": "https://github.com/design360n-sketch/design360n-updates/releases/latest",
   "files": [
