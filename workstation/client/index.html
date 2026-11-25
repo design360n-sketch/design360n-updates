@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Design360n Workstation v17.7.4 — Illustrator Extension</title>
+  <title>Design360n Workstation v17.7.5 — Illustrator Extension</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -24,7 +24,7 @@
       <div class="brand">
         <div class="brand-icon">D3</div>
         <div>
-          <div class="brand-title">Design360n Workstation <span style="font-size:10px;color:#3bcdca;">v17.7.4</span></div>
+          <div class="brand-title">Design360n Workstation <span style="font-size:10px;color:#3bcdca;">v17.7.5</span></div>
           <div class="brand-sub">Packaging • 3D T-Shirt • Stroke AI</div>
         </div>
       </div>
@@ -45,6 +45,7 @@
       <button class="tab-btn" data-tab="tab-export"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export</span></button>
       <button class="tab-btn" data-tab="tab-tools"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Tools</span></button>
       <button class="tab-btn" data-tab="tab-stroke"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span>Stroke</span></button>
+      <button class="tab-btn" data-tab="tab-seal"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10.5"/><polygon points="12,5 13.65,9.73 18.66,9.84 14.66,12.87 15.11,17.66 12,14.8 8.89,17.66 9.34,12.87 5.34,9.84 10.35,9.73"/></svg><span>Seal</span></button>
     </nav>
 
     <main class="content">
@@ -62,7 +63,7 @@
             <span class="home-card-text"><span class="home-card-name">Box 3D</span><span class="home-card-desc">Box, bag &amp; pouch dielines with live 3D mockup.</span></span>
             <span class="home-card-arrow">›</span>
           </button>
-          <button type="button" class="home-card" data-goto-tab="tab-apparel">
+          <button type="button" class="home-card" data-goto-tab="tab-apparel" data-goto-mode="btnModeTShirt">
             <span class="home-card-icon hc-apparel"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></span>
             <span class="home-card-text"><span class="home-card-name">Apparel 3D</span><span class="home-card-desc">T-shirt &amp; bottle 3D mockups, 360° spin.</span></span>
             <span class="home-card-arrow">›</span>
@@ -105,6 +106,16 @@
           <button type="button" class="home-card" data-goto-tab="tab-tools">
             <span class="home-card-icon hc-pro"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
             <span class="home-card-text"><span class="home-card-name">Pro Tools</span><span class="home-card-desc">All pro tools in one place.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-apparel" data-goto-mode="btnModeBottle">
+            <span class="home-card-icon hc-bottle"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M11 2v4l-2.5 3.5v10a2 2 0 0 0 2 2h3a2 2 0 0 0 2-2V9.5L13 6V2"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Bottle Studio</span><span class="home-card-desc">Bottle &amp; tumbler 3D mockups, 8 types.</span></span>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button type="button" class="home-card" data-goto-tab="tab-seal">
+            <span class="home-card-icon hc-seal"><svg class="ui-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10.5"/><polygon points="12,5 13.65,9.73 18.66,9.84 14.66,12.87 15.11,17.66 12,14.8 8.89,17.66 9.34,12.87 5.34,9.84 10.35,9.73"/></svg></span>
+            <span class="home-card-text"><span class="home-card-name">Seal Maker</span><span class="home-card-desc">Round rubber-stamp seals, true vector.</span></span>
             <span class="home-card-arrow">›</span>
           </button>
         </div>
@@ -859,7 +870,7 @@
       <section id="tab-apparel" class="tab-pane">
         <button type="button" class="back-btn" data-home="1">← Home</button>
         <!-- MODE SWITCH: T-SHIRT STUDIO vs BOTTLE & TUMBLER STUDIO -->
-        <div class="grid-2">
+        <div class="grid-2 apparel-mode-switch">
           <button id="btnModeTShirt" class="btn btn-primary btn-sm">T-Shirt Studio (12 Types × XS–3XL)</button>
           <button id="btnModeBottle" class="btn btn-sm">Bottle &amp; Tumbler Studio (8 Types)</button>
         </div>
@@ -1030,6 +1041,77 @@
           </div>
         </div>
       </section>
+
+      <!-- SEAL MAKER: round / oval rubber-stamp seals, true vector -->
+      <section id="tab-seal" class="tab-pane">
+        <button type="button" class="back-btn" data-home="1">← Home</button>
+        <div class="card accent-card">
+          <div class="card-title">
+            <span>Seal Maker</span>
+            <span style="text-transform:none;color:#3bcdca;font-weight:500;">True Vector • Rubber Stamp</span>
+          </div>
+          <div class="field">
+            <label>Outer Ring Text (company name)</label>
+            <input id="sealOuterText" type="text" value="M/S NAYEM ENTERPRISE" placeholder="e.g. M/S NAYEM ENTERPRISE" />
+          </div>
+          <div class="field">
+            <label>Inner Text Line (proprietor / address)</label>
+            <input id="sealInnerText" type="text" value="PROPRIETOR: NAYEM ISLAM" placeholder="e.g. PROPRIETOR: NAYEM ISLAM" />
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Centre Text — Line 1</label>
+              <input id="sealCentre1" type="text" value="DHAKA" placeholder="e.g. DHAKA" />
+            </div>
+            <div class="field">
+              <label>Centre Text — Line 2</label>
+              <input id="sealCentre2" type="text" value="BANGLADESH" placeholder="e.g. BANGLADESH" />
+            </div>
+          </div>
+          <div class="hint">Centre text shows only when Centre Element is "Centre Text".</div>
+          <div class="grid-2" style="margin-top:6px;">
+            <div class="field">
+              <label>Shape</label>
+              <select id="sealShape">
+                <option value="round" selected>Round</option>
+                <option value="oval">Oval</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Rings</label>
+              <select id="sealRings">
+                <option value="single">Single Ring</option>
+                <option value="double" selected>Double Ring</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Centre Element</label>
+              <select id="sealCentre">
+                <option value="star" selected>Star</option>
+                <option value="text">Centre Text</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Colour</label>
+              <select id="sealColor">
+                <option value="black" selected>Black</option>
+                <option value="blue">Blue</option>
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Diameter (mm)</label>
+            <input id="sealDiameter" type="number" min="20" max="100" step="1" value="40" />
+          </div>
+          <button id="sealGenerate" class="btn btn-primary" style="width:100%;margin-top:6px;">Generate Seal</button>
+          <div id="sealStatus" class="hint" style="margin-top:6px;">Draws a true-vector seal at the centre of the active artboard.</div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -1047,5 +1129,6 @@
   <script src="js/apparel3d.js"></script>
   <script src="js/apparel-ui.js"></script>
   <script src="js/easy-ui.js"></script>
+  <script src="js/seal-maker.js"></script>
 </body>
 </html>

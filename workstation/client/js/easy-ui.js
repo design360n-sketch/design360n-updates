@@ -22,7 +22,7 @@
   }
 
   /* Home cards + Back button (Photoshop-style navigation, v17.7.3).
-   * Only clicks EXISTING tab/subtab buttons and scrolls the page — it never
+   * Only clicks EXISTING tab/subtab/mode buttons and scrolls the page — it never
    * calls a panel function directly and never reads or writes any other
    * element's value. The Home tab button works through app.js initTabs. */
   function goHome() {
@@ -44,9 +44,14 @@
   function openTool(card) {
     var tab = card.getAttribute("data-goto-tab");
     var pro = card.getAttribute("data-goto-pro");
+    var mode = card.getAttribute("data-goto-mode");
     if (!tab) return;
     var tabBtn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
     if (tabBtn) tabBtn.click();
+    if (mode) {
+      var modeBtn = document.getElementById(mode);
+      if (modeBtn) modeBtn.click();
+    }
     var target = document.getElementById(tab);
     if (pro) {
       var subBtn = document.querySelector('.subtab-btn[data-pro="' + pro + '"]');

@@ -2703,3 +2703,194 @@ function dmGenerateCalendarAI(payloadJSON) {
         return "ERROR:" + err.message + " (line " + err.line + ")";
     }
 }
+
+/* --- Seal Maker: round / oval rubber-stamp seal, true vector (v17.7.5) --- */
+function dmSealColor(doc, name) {
+    var isRGB = (doc && doc.documentColorSpace === DocumentColorSpace.RGB);
+    var c;
+    if (name === "blue") {
+        if (isRGB) { c = new RGBColor(); c.red = 0; c.green = 80; c.blue = 180; }
+        else { c = dmCMYK(100, 70, 0, 0); }
+    } else if (name === "red") {
+        if (isRGB) { c = new RGBColor(); c.red = 200; c.green = 30; c.blue = 30; }
+        else { c = dmCMYK(0, 100, 100, 0); }
+    } else if (name === "green") {
+        if (isRGB) { c = new RGBColor(); c.red = 0; c.green = 130; c.blue = 70; }
+        else { c = dmCMYK(100, 0, 100, 0); }
+    } else {
+        c = dmSafeBlack(doc);
+    }
+    return c;
+}
+
+function dmSealArcPoints(cx, cy, rx, ry, a0deg, a1deg, stepDeg) {
+    var pts = [];
+    var a0 = a0deg * Math.PI / 180, a1 = a1deg * Math.PI / 180;
+    var step = stepDeg * Math.PI / 180;
+    var n = Math.max(2, Math.round(Math.abs(a1 - a0) / step));
+    for (var i = 0; i <= n; i++) {
+        var a = a0 + (a1 - a0) * (i / n);
+        pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
+    }
+    return pts;
+}
+
+function dmSealCenteredText(grp, str, cx, yCenterPt, size, col, fontObj, maxW) {
+    if (!str) return null;
+    var tf = grp.textFrames.add();
+    tf.contents = str;
+    var ca = tf.textRange.characterAttributes;
+    ca.size = size;
+    ca.fillColor = col;
+    if (fontObj) { try { ca.textFont = fontObj; } catch (eF) {} }
+    try { tf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (eJ) {}
+    if (maxW && tf.width > maxW) {
+        var ns = Math.max(5, size * (maxW / tf.width));
+        ca.size = ns;
+    }
+    tf.position = [cx - tf.width / 2, yCenterPt + tf.height / 2];
+    return tf;
+}
+
+function dmGenerateSeal(payloadJSON) {
+    try {
+        var p = dmParseJSON(payloadJSON);
+        var outerText = String(p.outerText || "M/S NAYEM ENTERPRISE").toUpperCase();
+        var innerText = String(p.innerText || "");
+        var centre1 = String(p.centre1 || "");
+        var centre2 = String(p.centre2 || "");
+        var shape = (p.shape === "oval") ? "oval" : "round";
+        var rings = (p.rings === "single") ? "single" : "double";
+        var centre = (p.centre === "text" || p.centre === "none") ? p.centre : "star";
+        var diaMm = parseFloat(p.diameterMm) || 40;
+        if (diaMm < 20) diaMm = 20;
+        if (diaMm > 100) diaMm = 100;
+        var colName = String(p.color || "black");
+
+        var doc;
+        if (app.documents.length > 0) {
+            doc = app.activeDocument;
+        } else {
+            var preset = new DocumentPreset();
+            preset.width = 400; preset.height = 400;
+            preset.units = RulerUnits.Millimeters;
+            preset.colorMode = DocumentColorSpace.CMYK;
+            preset.title = "Seal_Maker";
+            doc = app.documents.addDocument(DocumentColorSpace.CMYK, preset);
+        }
+
+        var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+        var cx = (ab[0] + ab[2]) / 2;
+        var cy = (ab[1] + ab[3]) / 2;
+        var diaPt = diaMm * MM_TO_PT;
+        var rx = diaPt / 2;
+        var ry = (shape === "oval") ? diaPt * 0.36 : diaPt / 2; // oval: height = 72% of width
+        var rMin = Math.min(rx, ry);
+        var col = dmSealColor(doc, colName);
+
+        var lyr = dmGetOrCreateLayer(doc, "Seal_Maker");
+        var grp = lyr.groupItems.add();
+        grp.name = "Seal_" + Math.round(diaMm) + "mm";
+
+        // Outer ring(s) — stroke-only true vector.
+        var outerW = Math.max(0.75, diaPt * 0.012);
+        var ring = grp.pathItems.ellipse(cy + ry, cx - rx, rx * 2, ry * 2);
+        ring.filled = false; ring.stroked = true; ring.strokeColor = col; ring.strokeWidth = outerW;
+        if (rings === "double") {
+            var inF = 0.78;
+            var ring2 = grp.pathItems.ellipse(cy + ry * inF, cx - rx * inF, rx * inF * 2, ry * inF * 2);
+            ring2.filled = false; ring2.stroked = true; ring2.strokeColor = col; ring2.strokeWidth = Math.max(0.6, outerW * 0.6);
+        }
+
+        var fontObj = dmFindTextFont("Arial");
+
+        // Outer text on a top arc (250 deg, centred on the top, gap at the bottom).
+        // The arc runs clockwise over the top (left -> top -> right), so the text
+        // reads left-to-right and upright (glyph tops point outward). The arc
+        // path itself is invisible (no stroke, no fill). The font size is fitted
+        // to the arc length, and the text baseline radius is pulled in from the
+        // ring by the cap height so no letter pokes outside the ring.
+        if (outerText) {
+            var fs = Math.min(diaPt * 0.16, 24);
+            var rTxtX = rx, rTxtY = ry;
+            for (var it = 0; it < 40; it++) {
+                var capH = 0.72 * fs;
+                rTxtX = rx - 2 - capH;
+                rTxtY = ry - 2 - capH;
+                var rAvg = (rTxtX + rTxtY) / 2;
+                var arcLen = (250 * Math.PI / 180) * rAvg;
+                if (fs <= 5) break;
+                if (outerText.length * fs * 0.62 <= arcLen * 0.95) break;
+                fs -= 0.5;
+            }
+            if (rTxtX < 8) rTxtX = 8;
+            if (rTxtY < 8) rTxtY = 8;
+            var arcPts = dmSealArcPoints(cx, cy, rTxtX, rTxtY, 215, -35, 4);
+            var arc = grp.pathItems.add();
+            arc.setEntirePath(arcPts);
+            arc.filled = false; arc.stroked = false;
+            var tf = grp.textFrames.add();
+            tf.contents = outerText;
+            var ca = tf.textRange.characterAttributes;
+            ca.size = fs;
+            ca.fillColor = col;
+            if (fontObj) { try { ca.textFont = fontObj; } catch (eF) {} }
+            try { tf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (eJ) {}
+            var pathOK = false;
+            try { tf.textPath = arc; pathOK = true; } catch (eP) { pathOK = false; }
+            if (!pathOK) {
+                // Fallback: straight text centred near the top inside the ring.
+                tf.position = [cx - tf.width / 2, cy + ry * 0.88 + tf.height / 2];
+            }
+        }
+
+        // Centre element: star (filled 5-point polygon) or centre text lines.
+        if (centre === "star") {
+            var sR = rMin * 0.32, sRi = sR * 0.42;
+            var starPts = [];
+            for (var s = 0; s < 10; s++) {
+                var aDeg = 90 - s * 36;
+                var aRad = aDeg * Math.PI / 180;
+                var rr = (s % 2 === 0) ? sR : sRi;
+                starPts.push([cx + rr * Math.cos(aRad), cy + rr * Math.sin(aRad)]);
+            }
+            var star = grp.pathItems.add();
+            star.setEntirePath(starPts);
+            star.closed = true;
+            star.filled = true; star.fillColor = col;
+            star.stroked = false;
+        } else if (centre === "text") {
+            var cSize = Math.max(6, Math.min(16, diaPt * 0.11));
+            var cMaxW = rMin * 1.45;
+            var lines = [];
+            if (centre1) lines.push(centre1);
+            if (centre2) lines.push(centre2);
+            if (lines.length === 1) {
+                dmSealCenteredText(grp, lines[0], cx, cy, cSize, col, fontObj, cMaxW);
+            } else if (lines.length === 2) {
+                dmSealCenteredText(grp, lines[0], cx, cy + cSize * 0.55, cSize, col, fontObj, cMaxW);
+                dmSealCenteredText(grp, lines[1], cx, cy - cSize * 0.55, cSize, col, fontObj, cMaxW);
+            }
+        }
+
+        // Inner text line — straight, centred below the centre element.
+        // Max width is the chord of the innermost ring at that height, so the
+        // line never crosses the ring.
+        if (innerText) {
+            var iSize = Math.max(5, Math.min(12, diaPt * 0.085));
+            var dyIn = ry * 0.52;
+            var riX = (rings === "double") ? rx * 0.78 : rx;
+            var riY = (rings === "double") ? ry * 0.78 : ry;
+            var chordIn = 2 * riX * Math.sqrt(Math.max(0, 1 - (dyIn / riY) * (dyIn / riY))) * 0.95;
+            dmSealCenteredText(grp, innerText, cx, cy - dyIn, iSize, col, fontObj, chordIn);
+        }
+
+        try { app.executeMenuCommand("fitinwindow"); } catch (eF2) {}
+        var shapeLabel = (shape === "oval") ? "Oval" : "Round";
+        var ringLabel = (rings === "single") ? "Single Ring" : "Double Ring";
+        var centreLabel = (centre === "star") ? "Star" : (centre === "text" ? "Text" : "None");
+        return "OK:Seal created (" + Math.round(diaMm) + "mm " + shapeLabel + ", " + ringLabel + ", " + centreLabel + ")!";
+    } catch (err) {
+        return "ERROR:" + err.message + " (line " + err.line + ")";
+    }
+}

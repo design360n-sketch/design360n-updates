@@ -85,6 +85,16 @@ body {
   padding: 5px 6px; gap: 4px;
 }
 
+/* Inner navigation bars — HIDDEN by design (v17.7.5): when a tool opens, ONLY
+ * that tool shows. The Tools subtab bar and the Apparel T-Shirt/Bottle mode
+ * switch stay in the DOM (hidden, not removed) because app.js (initProSubtabs)
+ * and easy-ui.js drive them by clicking their buttons programmatically.
+ * Every sub-tool stays reachable from its own Home card. */
+.subtabs,
+.apparel-mode-switch {
+  display: none !important;
+}
+
 .tab-btn {
   background: transparent; border: 1px solid transparent; color: var(--text-muted);
   font-size: 10.5px; font-weight: 600; padding: 7px 3px;
@@ -381,6 +391,8 @@ select, input[type="number"], input[type="text"], input[type="password"] {
 .hc-quick { background: linear-gradient(135deg, #f97316, #db2777); }
 .hc-stroke { background: linear-gradient(135deg, #a855f7, #6366f1); }
 .hc-pro { background: linear-gradient(135deg, #10b981, #06b6d4); }
+.hc-bottle { background: linear-gradient(135deg, #ec4899, #8b5cf6); }
+.hc-seal { background: linear-gradient(135deg, #f43f5e, #f59e0b); }
 .home-card-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .home-card-name { font-size: 13.5px; font-weight: 700; color: #f8fafc; }
 .home-card-desc {
