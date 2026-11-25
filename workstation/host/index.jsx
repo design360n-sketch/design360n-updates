@@ -3139,6 +3139,38 @@ function dmExportBrandGuidelinePDF() {
 function dmGenerateBrandKitAI(payloadJSON) {
     try {
         var p = dmParseJSON(payloadJSON);
+        /* --- Online mockup photos (Brand Kit Pro) ---
+         * p.mockups = { category: localTempFilePath } — downloaded at runtime
+         * by the panel (Openverse). dmPlaceMockup places the photo contain-fit
+         * inside a card zone with a subtle 10% brand-color tint so stock
+         * photos feel brand-owned. Returns false on ANY problem (missing
+         * file, bad image, place error) so callers fall back to vector art. */
+        var mkPaths = (p.mockups && typeof p.mockups === "object") ? p.mockups : {};
+        function dmPlaceMockup(grp, cat, x, yTop, w, h, tintC) {
+            try {
+                var path = mkPaths[cat];
+                if (!path) return false;
+                var f = new File(String(path));
+                if (!f.exists) return false;
+                var pi = grp.placedItems.add();
+                pi.file = f;
+                var gb = pi.geometricBounds;
+                var iw = Math.max(1, gb[2] - gb[0]), ih = Math.max(1, gb[1] - gb[3]);
+                var sc = Math.min(w / iw, h / ih) * 100;
+                if (sc > 0 && sc < 10000) pi.resize(sc, sc, true, true, true, true, sc, Transformation.CENTER);
+                var gb2 = pi.geometricBounds;
+                var cx = x + w / 2, cy = yTop - h / 2;
+                pi.translate(cx - (gb2[0] + gb2[2]) / 2, cy - (gb2[1] + gb2[3]) / 2);
+                if (tintC) {
+                    try {
+                        var ov = grp.pathItems.rectangle(yTop, x, w, h);
+                        ov.filled = true; ov.fillColor = tintC; ov.stroked = false;
+                        ov.opacity = 10;
+                    } catch (eOv) {}
+                }
+                return true;
+            } catch (ePM) { return false; }
+        }
         var inc = p.include || {};
         var srcDoc = (app.documents.length > 0) ? app.activeDocument : null;
         var srcSel = [];
@@ -3266,12 +3298,16 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 // 6. Row 6: Packaging Cup/Box Card + Die-Cut Sticker Card
                 bx(36, H - 1478, 620, 436, cCream, null, 0, 26);
                 tx("PACKAGING & MERCHANDISE", 346, H - 1510, 13, cDk, fT, true);
-                bx(110, H - 1560, 175, 280, cS, null, 0, 18); lg(197, H - 1690, 110, 85);
-                bx(330, H - 1610, 240, 230, cDk, null, 0, 16); lg(450, H - 1720, 130, 95);
+                if (!dmPlaceMockup(g, "packaging", 56, H - 1540, 580, 360, cP)) {
+                    bx(110, H - 1560, 175, 280, cS, null, 0, 18); lg(197, H - 1690, 110, 85);
+                    bx(330, H - 1610, 240, 230, cDk, null, 0, 16); lg(450, H - 1720, 130, 95);
+                }
                 bx(676, H - 1478, 488, 436, cS, null, 0, 26);
-                bx(760, H - 1565, 320, 240, cWhite, null, 0, 56);
-                lg(920, H - 1685, 230, 150);
-                tx("DIE-CUT STICKER & TAG", 920, H - 1865, 13, cWhite, fT, true);
+                if (!dmPlaceMockup(g, "cup", 696, H - 1500, 448, 330, cP)) {
+                    bx(760, H - 1565, 320, 240, cWhite, null, 0, 56);
+                    lg(920, H - 1685, 230, 150);
+                }
+                tx("BRANDED MERCHANDISE", 920, H - 1865, 13, cWhite, fT, true);
             } else if (tpl === "swiss_corp") {
                 // Style 2: Inova Brandscape Swiss Minimal Corporate Sheet (Clean White Grid)
                 bx(0, H, W, H, cWhite, null, 0, 0);
@@ -3311,11 +3347,11 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 // Applications Grid (Signboard, Tote Bag, Bottle, T-Shirt)
                 bx(28, H - 830, 560, 420, dmHexToRGBColor("#e2e8f0"), null, 0, 0);
                 tx("STOREFRONT & 3D WALL SIGNAGE", 56, H - 865, 11, cMuted, fT, false);
-                lg(308, H - 1040, 320, 180);
+                if (!dmPlaceMockup(g, "signage", 48, H - 890, 520, 340, cP)) { lg(308, H - 1040, 320, 180); }
 
                 bx(606, H - 830, 566, 420, cP, null, 0, 0);
                 tx("MERCHANDISE & TOTE BAG", 636, H - 865, 11, cWhite, fT, false);
-                lg(889, H - 1040, 260, 180);
+                if (!dmPlaceMockup(g, "bag", 626, H - 890, 526, 340, cP)) { lg(889, H - 1040, 260, 180); }
 
                 bx(28, H - 1270, 370, 440, cDk, null, 0, 0);
                 tx("MOBILE APP ICON", 213, H - 1305, 11, cP, fT, true);
@@ -3323,11 +3359,11 @@ function dmGenerateBrandKitAI(payloadJSON) {
 
                 bx(414, H - 1270, 370, 440, dmHexToRGBColor("#f1f5f9"), null, 0, 0);
                 tx("BOTTLE PACKAGING", 599, H - 1305, 11, cDk, fT, true);
-                bx(534, H - 1370, 130, 290, cP, null, 0, 26); lg(599, H - 1510, 88, 65);
+                if (!dmPlaceMockup(g, "packaging", 434, H - 1330, 330, 360, cP)) { bx(534, H - 1370, 130, 290, cP, null, 0, 26); lg(599, H - 1510, 88, 65); }
 
                 bx(800, H - 1270, 372, 440, cS, null, 0, 0);
                 tx("STAFF APPAREL TEE", 986, H - 1305, 11, cWhite, fT, true);
-                lg(986, H - 1490, 180, 120);
+                if (!dmPlaceMockup(g, "apparel", 820, H - 1330, 332, 360, cP)) { lg(986, H - 1490, 180, 120); }
 
                 // Clean Editorial Footer
                 bx(0, H - 1750, W, 200, cWhite, null, 0, 0);
@@ -3370,12 +3406,12 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 lg(306, H - 1660, 280, 190);
                 bx(600, H - 1390, 564, 245, cDk, null, 0, 14);
                 tx("SIGNBOARD & STOREFRONT", 882, H - 1420, 12, cA, fT, true);
-                lg(882, H - 1525, 240, 130);
+                if (!dmPlaceMockup(g, "signage", 620, H - 1450, 524, 170, cP)) { lg(882, H - 1525, 240, 130); }
                 bx(600, H - 1660, 270, 250, cWhite, cMuted, 0.6, 14);
-                lg(735, H - 1745, 140, 90);
+                if (!dmPlaceMockup(g, "cup", 616, H - 1676, 238, 150, cP)) { lg(735, H - 1745, 140, 90); }
                 tx((p.address || "") + "\n" + (p.phone || ""), 735, H - 1835, 10, cDk, fB, true);
                 bx(894, H - 1660, 270, 250, cA, null, 0, 14);
-                lg(1029, H - 1775, 150, 110);
+                if (!dmPlaceMockup(g, "apparel", 910, H - 1676, 238, 150, cP)) { lg(1029, H - 1775, 150, 110); }
                 tx("UNIFORM / APRON", 1029, H - 1865, 11, cDk, fT, true);
             } else {
                 // Style 4: Break Bold Retail & Pattern Sheet (Vibrant Hero + 3 Pill Lockups + Pattern Footer Strip)
@@ -3400,13 +3436,22 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 tx("PRIMARY FONT\n" + (p.titleFont || "Poppins Bold") + "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n0123456789", 830, H - 638, 13, cDk, fT, false);
 
                 // Application 2x3 Grid (Cup, Shopping Bag, Round Sign, Drawer Box, Sticker)
-                bx(0, H - 900, 400, 390, cCream, null, 0, 0); bx(115, H - 970, 170, 230, cP, null, 0, 18); lg(200, H - 1085, 115, 80); tx("CUP PACKAGING", 200, H - 1235, 12, cDk, fT, true);
-                bx(400, H - 900, 400, 390, cP, null, 0, 0); bx(490, H - 970, 220, 240, cCream, null, 0, 10); lg(600, H - 1085, 130, 90); tx("SHOPPING BAG", 600, H - 1235, 12, cWhite, fT, true);
+                bx(0, H - 900, 400, 390, cCream, null, 0, 0);
+                if (!dmPlaceMockup(g, "cup", 20, H - 930, 360, 280, cP)) { bx(115, H - 970, 170, 230, cP, null, 0, 18); lg(200, H - 1085, 115, 80); }
+                tx("CUP PACKAGING", 200, H - 1235, 12, cDk, fT, true);
+                bx(400, H - 900, 400, 390, cP, null, 0, 0);
+                if (!dmPlaceMockup(g, "bag", 420, H - 930, 360, 280, cP)) { bx(490, H - 970, 220, 240, cCream, null, 0, 10); lg(600, H - 1085, 130, 90); }
+                tx("SHOPPING BAG", 600, H - 1235, 12, cWhite, fT, true);
                 bx(800, H - 900, 400, 390, cDk, null, 0, 0);
-                var rsEl = g.pathItems.ellipse(H - 960, 880, 240, 240); rsEl.filled = true; rsEl.fillColor = cP; rsEl.stroked = true; rsEl.strokeColor = cWhite; rsEl.strokeWidth = 4;
-                lg(1000, H - 1080, 150, 105); tx("ROUND SIGNAGE", 1000, H - 1235, 12, cWhite, fT, true);
+                if (!dmPlaceMockup(g, "signage", 820, H - 930, 360, 280, cP)) {
+                    var rsEl = g.pathItems.ellipse(H - 960, 880, 240, 240); rsEl.filled = true; rsEl.fillColor = cP; rsEl.stroked = true; rsEl.strokeColor = cWhite; rsEl.strokeWidth = 4;
+                    lg(1000, H - 1080, 150, 105);
+                }
+                tx("ROUND SIGNAGE", 1000, H - 1235, 12, cWhite, fT, true);
 
-                bx(0, H - 1290, 600, 380, cS, null, 0, 0); bx(140, H - 1355, 320, 220, cP, null, 0, 14); lg(300, H - 1465, 180, 110); tx("PACKAGING BOX", 300, H - 1615, 13, cWhite, fT, true);
+                bx(0, H - 1290, 600, 380, cS, null, 0, 0);
+                if (!dmPlaceMockup(g, "packaging", 20, H - 1320, 560, 280, cP)) { bx(140, H - 1355, 320, 220, cP, null, 0, 14); lg(300, H - 1465, 180, 110); }
+                tx("PACKAGING BOX", 300, H - 1615, 13, cWhite, fT, true);
                 bx(600, H - 1290, 600, 380, cDk, null, 0, 0); bx(740, H - 1355, 320, 220, cCream, null, 0, 48); lg(900, H - 1465, 190, 120); tx("BRAND STICKER", 900, H - 1615, 13, cWhite, fT, true);
 
                 // Seamless Brand Pattern Footer Strip!
@@ -3636,11 +3681,13 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 addBox(g, x0 + 312, y0 - 95, 250, 155, colWhite, colMuted, 0.7, 10);
                 addBox(g, x0 + 312, y0 - 95, 10, 155, colP, null, 0, 0);
                 addT(g, bName + "\n" + (p.phone || "") + "\n" + (p.email || "") + "\n" + (p.website || ""), x0 + 334, y0 - 122, 9.5, colDk, fBody, false);
-                // DL Envelope
+                // DL Envelope — real stationery mockup photo when available, else vector
                 addBox(g, x0 + 48, y0 - 270, 514, 180, colWhite, colMuted, 0.7, 10);
                 addBox(g, x0 + 48, y0 - 436, 514, 14, colP, null, 0, 0);
-                placeLogo(g, x0 + 108, y0 - 322, 68, 42);
-                addT(g, "DL ENVELOPE (220×110mm)\n" + (p.address || ""), x0 + 158, y0 - 306, 10, colDk, fBody, false);
+                if (!dmPlaceMockup(g, "stationery", x0 + 64, y0 - 286, 482, 148, colP)) {
+                    placeLogo(g, x0 + 108, y0 - 322, 68, 42);
+                    addT(g, "DL ENVELOPE (220×110mm)\n" + (p.address || ""), x0 + 158, y0 - 306, 10, colDk, fBody, false);
+                }
                 // Email Signature & Notepad
                 addBox(g, x0 + 48, y0 - 470, 514, 195, colDk2, colS, 1, 12);
                 placeLogo(g, x0 + 115, y0 - 565, 80, 60);
@@ -3664,14 +3711,18 @@ function dmGenerateBrandKitAI(payloadJSON) {
                 placeLogo(g, x0 + 228, y0 - 215, 140, 100);
                 addT(g, bName, x0 + 228, y0 - 305, 24, colWhite, fTitle, true);
                 addT(g, "INSTAGRAM / FB POST (1080×1080)", x0 + 228, y0 - 418, 10, colP, fTitle, true);
-                // IG Story Vertical
+                // IG Story Vertical — real phone mockup photo when available
                 addBox(g, x0 + 432, y0 - 95, 240, 570, colP, null, 0, 18);
-                placeLogo(g, x0 + 552, y0 - 280, 130, 95);
+                if (!dmPlaceMockup(g, "phone", x0 + 448, y0 - 111, 208, 280, colP)) { placeLogo(g, x0 + 552, y0 - 280, 130, 95); }
                 addT(g, "IG STORY\n1080×1920", x0 + 552, y0 - 420, 16, colDk, fTitle, true);
-                // FB Cover Banner
+                // FB Cover Banner — real social mockup photo when available
                 addBox(g, x0 + 696, y0 - 95, 536, 210, colDk2, colS, 2, 16);
-                placeLogo(g, x0 + 805, y0 - 200, 120, 90);
-                addT(g, bName + "\n" + (p.tagline || "") + "\nFACEBOOK COVER (851×315)", x0 + 900, y0 - 155, 15, colWhite, fTitle, false);
+                if (dmPlaceMockup(g, "social", x0 + 712, y0 - 111, 240, 178, colP)) {
+                    addT(g, bName + "\n" + (p.tagline || "") + "\nFACEBOOK COVER (851×315)", x0 + 980, y0 - 155, 15, colWhite, fTitle, false);
+                } else {
+                    placeLogo(g, x0 + 805, y0 - 200, 120, 90);
+                    addT(g, bName + "\n" + (p.tagline || "") + "\nFACEBOOK COVER (851×315)", x0 + 900, y0 - 155, 15, colWhite, fTitle, false);
+                }
                 // Flyer & Poster
                 addBox(g, x0 + 696, y0 - 330, 536, 335, colLt, colP, 1.5, 16);
                 addBox(g, x0 + 696, y0 - 330, 536, 60, colDk, null, 0, 12);
@@ -3684,33 +3735,35 @@ function dmGenerateBrandKitAI(payloadJSON) {
             } else if (key === "sec8") {
                 slideHeader(g, x0, y0, "08", "PACKAGING DESIGN SUITE (BOX • BAG • LABEL • TAG • STICKER • THANK YOU)", false);
                 var pCards = [
-                    [x0 + 48,  y0 - 95, 375, 275, colDk,    "PRODUCT BOX DESIGN", true],
-                    [x0 + 452, y0 - 95, 375, 275, colP,     "SHOPPING BAG", false],
-                    [x0 + 856, y0 - 95, 375, 275, colWhite, "PRODUCT LABEL & STICKER", false],
-                    [x0 + 48,  y0 - 395, 375, 275, colWhite, "HANG TAG (50×90mm)", false],
-                    [x0 + 452, y0 - 395, 375, 275, colDk2,   "THANK YOU CARD", true],
-                    [x0 + 856, y0 - 395, 375, 275, colS,     "BRANDED TISSUE PAPER PATTERN", true]
+                    [x0 + 48,  y0 - 95, 375, 275, colDk,    "PRODUCT BOX DESIGN", true, "packaging"],
+                    [x0 + 452, y0 - 95, 375, 275, colP,     "SHOPPING BAG", false, "bag"],
+                    [x0 + 856, y0 - 95, 375, 275, colWhite, "PRODUCT LABEL & STICKER", false, ""],
+                    [x0 + 48,  y0 - 395, 375, 275, colWhite, "HANG TAG (50×90mm)", false, ""],
+                    [x0 + 452, y0 - 395, 375, 275, colDk2,   "THANK YOU CARD", true, ""],
+                    [x0 + 856, y0 - 395, 375, 275, colS,     "BRANDED TISSUE PAPER PATTERN", true, ""]
                 ];
                 for (var pc = 0; pc < pCards.length; pc++) {
                     var pd = pCards[pc];
                     addBox(g, pd[0], pd[1], pd[2], pd[3], pd[4], colP, 1.0, 16);
-                    placeLogo(g, pd[0] + pd[2] / 2, pd[1] - pd[3] * 0.44, pd[2] * 0.48, pd[3] * 0.44);
+                    var placed8 = pd[7] ? dmPlaceMockup(g, pd[7], pd[0] + 16, pd[1] - 16, pd[2] - 32, pd[3] - 64, colP) : false;
+                    if (!placed8) placeLogo(g, pd[0] + pd[2] / 2, pd[1] - pd[3] * 0.44, pd[2] * 0.48, pd[3] * 0.44);
                     addT(g, pd[5], pd[0] + pd[2] / 2, pd[1] - pd[3] + 28, 11, pd[6] ? colWhite : colDk, fTitle, true);
                 }
             } else if (key === "sec9") {
                 slideHeader(g, x0, y0, "09", "BRAND APPLICATIONS (SIGNBOARD • STOREFRONT • OFFICE • UNIFORM • VEHICLE • BOOTH)", true);
                 var aCards = [
-                    [x0 + 48,  y0 - 95, 576, 175, colDk2, "SHOP SIGNBOARD & STOREFRONT FASCIA"],
-                    [x0 + 656, y0 - 95, 576, 175, colP,   "OFFICE RECEPTION WALL BRANDING"],
-                    [x0 + 48,  y0 - 295, 375, 375, colDk2, "STAFF UNIFORM & MERCH"],
-                    [x0 + 452, y0 - 295, 375, 375, colS,   "DELIVERY VEHICLE WRAP"],
-                    [x0 + 856, y0 - 295, 375, 375, colLt,  "EXHIBITION BOOTH BACKDROP"]
+                    [x0 + 48,  y0 - 95, 576, 175, colDk2, "SHOP SIGNBOARD & STOREFRONT FASCIA", "signage"],
+                    [x0 + 656, y0 - 95, 576, 175, colP,   "OFFICE RECEPTION WALL BRANDING", ""],
+                    [x0 + 48,  y0 - 295, 375, 375, colDk2, "STAFF UNIFORM & MERCH", "apparel"],
+                    [x0 + 452, y0 - 295, 375, 375, colS,   "DELIVERY VEHICLE WRAP", "billboard"],
+                    [x0 + 856, y0 - 295, 375, 375, colLt,  "EXHIBITION BOOTH BACKDROP", "laptop"]
                 ];
                 for (var ac = 0; ac < aCards.length; ac++) {
                     var ad = aCards[ac];
                     var isLtC = (ac === 1 || ac === 4);
                     addBox(g, ad[0], ad[1], ad[2], ad[3], ad[4], colP, 1.0, 16);
-                    placeLogo(g, ad[0] + ad[2] / 2, ad[1] - ad[3] * 0.44, ad[2] * 0.44, ad[3] * 0.42);
+                    var placed9 = ad[6] ? dmPlaceMockup(g, ad[6], ad[0] + 16, ad[1] - 16, ad[2] - 32, ad[3] - 64, colP) : false;
+                    if (!placed9) placeLogo(g, ad[0] + ad[2] / 2, ad[1] - ad[3] * 0.44, ad[2] * 0.44, ad[3] * 0.42);
                     addT(g, ad[5], ad[0] + ad[2] / 2, ad[1] - ad[3] + 28, 11, isLtC ? colDk : colWhite, fTitle, true);
                 }
             } else if (key === "sec10") {

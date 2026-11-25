@@ -25,6 +25,6 @@
     "client/js/bento-grid.js",
     "client/js/brand-kit.js"
   ],
-  "notes": "Brand Kit Pro: 5 presentation template styles (Bento Dark, Swiss Minimal Corporate, Warm Editorial, Bold Retail, 10-artboard Brand Book) — single 1200x1950 Behance/agency sheets. NOTE: the ZIP also ships its own version-workstation.json with only 12 files and the two tee PNGs listed — NOT used; the live manifest keeps the full 22-file list (PNGs still excluded: updater is text-only). (updateSizeHud call removed again before release: still undefined in this ZIP.)",
-  "version": "17.7.22"
+  "notes": "Brand Kit Pro HIGHLY ADVANCED: real online mockup photos, brand-wise (Openverse, CC-licensed, no key) \u2014 10 categories (stationery, signage, packaging, bag, apparel, cup, phone, social, laptop, billboard), Auto/Manual/Off + industry prefix, clickable thumbnails to swap photos, 10% brand-tint overlay so stock photos feel brand-owned; offline or failed download falls back gracefully to the old vector-only sheets. 18 photo zones wired into all 5 templates + 10-artboard book. NOTE: the ZIP also ships its own version-workstation.json \u2014 this release uses the full 22-file live manifest (PNGs still excluded: updater is text-only; mockups download at runtime only).",
+  "version": "17.7.23"
 }

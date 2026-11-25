@@ -34,6 +34,216 @@
     return json.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   }
 
+  /* --- Online Mockups (Brand Kit Pro — brand-wise real photos) ---
+   * Source: Openverse API (api.openverse.org) — CC-licensed images, no API
+   * key, commercial use allowed (license_type=commercial). Every query
+   * chain below was verified live 2026-11-25 — each category returns
+   * results. Photos download at RUNTIME into the OS temp folder and reach
+   * the JSX as local file paths. Nothing binary ships in the auto-update.
+   * If offline or a download fails, sheets still build vector-only. */
+  var BK_MOCKUP_API = "https://api.openverse.org/v1/images/";
+  var BK_MOCKUP_CATS = ["stationery", "signage", "packaging", "bag", "apparel", "cup", "social", "laptop", "phone", "billboard"];
+  var BK_MOCKUPS = {
+    stationery: { label: "Stationery", queries: ["stationery mockup", "business card mockup", "letterhead mockup"] },
+    signage: { label: "Signage", queries: ["signage", "shop sign", "storefront sign mockup"] },
+    packaging: { label: "Packaging", queries: ["packaging mockup", "product box mockup"] },
+    bag: { label: "Bag / Tote", queries: ["shopping bag mockup", "tote bag mockup"] },
+    apparel: { label: "Apparel / Tee", queries: ["t-shirt mockup", "apparel mockup"] },
+    cup: { label: "Cup / Mug", queries: ["coffee cup mockup", "mug mockup"] },
+    social: { label: "Social Post", queries: ["social media mockup", "instagram post mockup"] },
+    laptop: { label: "Laptop / Web", queries: ["laptop mockup", "website mockup"] },
+    phone: { label: "Phone / App", queries: ["smartphone mockup", "mobile app mockup"] },
+    billboard: { label: "Billboard", queries: ["billboard mockup", "poster mockup"] }
+  };
+  /* Zones each template actually uses (Auto mode fetches only these). */
+  var BK_TEMPLATE_ZONES = {
+    bento_dark: ["packaging", "cup"],
+    swiss_corp: ["signage", "bag", "packaging", "apparel"],
+    editorial_warm: ["signage", "cup", "apparel"],
+    bold_retail: ["cup", "bag", "signage", "packaging"],
+    book_10: ["stationery", "phone", "social", "packaging", "bag", "signage", "apparel", "billboard", "laptop"]
+  };
+  var bkMockupCache = {};
+  var bkMockupBusy = false;
+  var bkPlanFn = null;
+
+  function bkNode() {
+    try {
+      if (typeof require !== "function") return null;
+      return { fs: require("fs"), path: require("path"), os: require("os") };
+    } catch (e) { return null; }
+  }
+  function bkTempDir() {
+    var n = bkNode();
+    if (!n) return null;
+    try {
+      var dir = n.path.join(n.os.tmpdir(), "Design360n_BrandKit_Mockups");
+      if (!n.fs.existsSync(dir)) n.fs.mkdirSync(dir);
+      return dir;
+    } catch (e) { return null; }
+  }
+  function bkFetchJSON(url, timeoutMs) {
+    return new Promise(function (resolve) {
+      var done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; resolve(null); } }, timeoutMs || 12000);
+      fetch(url).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        if (!done) { done = true; clearTimeout(timer); resolve(j); }
+      }).catch(function () { if (!done) { done = true; clearTimeout(timer); resolve(null); } });
+    });
+  }
+  function bkUsableImage(r) {
+    if (!r || !r.url) return false;
+    return /\.(jpe?g|png)(\?|#|$)/i.test(r.url);
+  }
+  function bkPickBest(results) {
+    var usable = (results || []).filter(bkUsableImage);
+    if (usable.length === 0) return null;
+    function score(r) {
+      var s = (r.width || 0) * (r.height || 0);
+      if ((r.width || 0) >= (r.height || 0)) s += 1000000;
+      if (r.license === "cc0" || r.license === "pdm") s += 500000;
+      return s;
+    }
+    usable.sort(function (a, b) { return score(b) - score(a); });
+    return usable[0];
+  }
+  function bkQueryURL(q, page) {
+    return BK_MOCKUP_API + "?q=" + encodeURIComponent(q) + "&page_size=8&license_type=commercial&page=" + (page || 1);
+  }
+  function bkFetchCategory(cat, industry, page, done) {
+    var def = BK_MOCKUPS[cat];
+    if (!def) { done(null); return; }
+    var queries = [];
+    var qi;
+    for (qi = 0; qi < def.queries.length; qi++) {
+      if (industry) queries.push(industry + " " + def.queries[qi]);
+      queries.push(def.queries[qi]);
+    }
+    var i = 0;
+    function next() {
+      if (i >= queries.length) { done(null); return; }
+      var q = queries[i++];
+      bkFetchJSON(bkQueryURL(q, page), 12000).then(function (j) {
+        var best = j ? bkPickBest(j.results) : null;
+        if (best) done(best);
+        else next();
+      });
+    }
+    next();
+  }
+  function bkDownloadImage(url, filename, done) {
+    var n = bkNode();
+    var dir = bkTempDir();
+    if (!n || !dir) { done(null); return; }
+    var ext = /\.png(\?|#|$)/i.test(url) ? ".png" : ".jpg";
+    var full = n.path.join(dir, filename + ext);
+    if (n.fs.existsSync(full)) { done(full); return; }
+    var timer = setTimeout(function () { done(null); }, 20000);
+    fetch(url).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.arrayBuffer(); }).then(function (ab) {
+      clearTimeout(timer);
+      try {
+        var buf = (typeof Buffer !== "undefined") ? Buffer.from(ab) : new Uint8Array(ab);
+        n.fs.writeFileSync(full, buf);
+        done(full);
+      } catch (e) { done(null); }
+    }).catch(function () { clearTimeout(timer); done(null); });
+  }
+  function bkFetchAll(cats, industry, progress, done) {
+    var idx = 0;
+    function next() {
+      if (idx >= cats.length) { done(); return; }
+      var cat = cats[idx++];
+      if (progress) progress(cat, idx, cats.length);
+      bkFetchCategory(cat, industry, 1, function (best) {
+        if (!best) { next(); return; }
+        bkDownloadImage(best.url, cat, function (localPath) {
+          if (localPath) {
+            bkMockupCache[cat] = { url: best.url, localPath: localPath, title: best.title || cat, license: best.license || "", creator: best.creator || "", width: best.width || 0, height: best.height || 0 };
+          }
+          next();
+        });
+      });
+    }
+    next();
+  }
+  function bkMockupPaths() {
+    var out = {};
+    var cat;
+    for (cat in bkMockupCache) {
+      if (bkMockupCache.hasOwnProperty(cat) && bkMockupCache[cat].localPath) out[cat] = bkMockupCache[cat].localPath;
+    }
+    return out;
+  }
+  function bkEnabledCats(plan) {
+    var mode = plan.mockupMode || "auto";
+    if (mode === "auto") {
+      var zones = BK_TEMPLATE_ZONES[plan.templateStyle] || BK_TEMPLATE_ZONES.book_10;
+      return zones.slice();
+    }
+    var out = [];
+    BK_MOCKUP_CATS.forEach(function (cat) {
+      var el = document.getElementById("bkMk" + cat.charAt(0).toUpperCase() + cat.slice(1));
+      if (el && el.checked) out.push(cat);
+    });
+    return out;
+  }
+  function bkRenderThumbs() {
+    var box = document.getElementById("bkMockupThumbs");
+    if (!box) return;
+    var html = "";
+    BK_MOCKUP_CATS.forEach(function (cat) {
+      var m = bkMockupCache[cat];
+      if (!m) return;
+      var tip = (m.title || cat).replace(/"/g, "") + " — " + (m.creator || "Openverse") + " (" + (m.license || "CC") + ") — click to swap";
+      html += '<img class="bk-mock-thumb" data-cat="' + cat + '" src="' + m.url + '" title="' + tip + '" alt="' + cat + '" />';
+    });
+    box.innerHTML = html || '<span class="hint">No mockups fetched yet.</span>';
+    var imgs = box.querySelectorAll("img.bk-mock-thumb");
+    for (var i = 0; i < imgs.length; i++) {
+      imgs[i].addEventListener("click", function () {
+        var cat = this.getAttribute("data-cat");
+        var plan = bkPlanFn ? bkPlanFn() : null;
+        if (!plan || bkMockupBusy) return;
+        var st = document.getElementById("bkMockupStatus");
+        if (st) st.textContent = "Swapping " + (BK_MOCKUPS[cat] ? BK_MOCKUPS[cat].label : cat) + " mockup…";
+        bkFetchCategory(cat, plan.industry, 2, function (best) {
+          if (!best) { if (st) st.textContent = "No alternate photo found for " + cat + "."; return; }
+          bkDownloadImage(best.url, cat + "_alt" + Date.now(), function (localPath) {
+            if (localPath) {
+              bkMockupCache[cat] = { url: best.url, localPath: localPath, title: best.title || cat, license: best.license || "", creator: best.creator || "", width: best.width || 0, height: best.height || 0 };
+              bkRenderThumbs();
+              if (st) st.textContent = "Swapped " + cat + " mockup ✓";
+            } else if (st) st.textContent = "Download failed for " + cat + ".";
+          });
+        });
+      });
+    }
+  }
+  function bkWireMockupUI(readPlanFn, setStatus) {
+    var btn = document.getElementById("btnBkFetchMockups");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      if (bkMockupBusy) return;
+      var plan = readPlanFn();
+      var cats = bkEnabledCats(plan);
+      if (plan.mockupMode === "off") { setStatus("Mockups are OFF — vector-only sheets. Switch mode to Auto / Manual to fetch photos."); return; }
+      if (cats.length === 0) { setStatus("Tick at least one mockup category first."); return; }
+      bkMockupBusy = true;
+      btn.disabled = true;
+      setStatus("Fetching online mockups from Openverse… (0/" + cats.length + ")");
+      bkFetchAll(cats, plan.industry, function (cat, n, total) {
+        setStatus("Fetching online mockups… (" + n + "/" + total + ") — " + (BK_MOCKUPS[cat] ? BK_MOCKUPS[cat].label : cat));
+        bkRenderThumbs();
+      }, function () {
+        bkMockupBusy = false;
+        btn.disabled = false;
+        bkRenderThumbs();
+        var n = Object.keys(bkMockupCache).length;
+        setStatus(n > 0 ? ("Ready: " + n + " real mockup photo(s) downloaded ✓ — Generate will place them in the artwork. Click a thumbnail to swap it.") : "Could not fetch mockups (offline?). Generate will use the vector-only sheets.");
+      });
+    });
+  }
+
   function brandPreviewSVG(opts) {
     var p = opts.primary || "#2ed3a3";
     var s = opts.secondary || "#0ea5e9";
@@ -115,6 +325,8 @@
     function readPlan() {
       var elTpl = document.getElementById("bkTemplate");
       var elAcc = document.getElementById("bkAccent");
+      var elInd = document.getElementById("bkIndustry");
+      var elMode = document.getElementById("bkMockupMode");
       var elStory = document.getElementById("bkStory");
       var elMiss = document.getElementById("bkMission");
       var elAud = document.getElementById("bkAudience");
@@ -143,6 +355,9 @@
         cmykPrimary: rgbToCmykStr(p), cmykSecondary: rgbToCmykStr(s), cmykAccent: rgbToCmykStr(a), cmykDark: rgbToCmykStr(dk), cmykLight: rgbToCmykStr(lt),
         titleFont: elTFont ? elTFont.value.trim() : "Montserrat",
         bodyFont: elBFont ? elBFont.value.trim() : "Arial",
+        industry: elInd ? elInd.value.trim() : "",
+        mockupMode: elMode ? elMode.value : "auto",
+        mockups: bkMockupPaths(),
         include: getCheckedItems()
       };
     }
@@ -185,12 +400,28 @@
           if (elStat) elStat.textContent = "Preview Mode: Open inside Adobe Illustrator to generate Brand Kit.";
           return;
         }
-        if (elStat) { elStat.textContent = "Building multi-artboard Brand Identity Kit in Illustrator…"; elStat.style.color = "#3bcdca"; }
-        csInterface.evalScript("dmGenerateBrandKitAI('" + escJSX(plan) + "')", function (res) {
-          if (elStat) {
-            elStat.textContent = (res && res.indexOf("OK:") === 0) ? res.substring(3) : (res || "Brand Identity Kit created!");
-            elStat.style.color = (res && res.indexOf("ERROR:") === 0) ? "#f87171" : "#3bcdca";
-          }
+        function doGenerate(finalPlan) {
+          if (elStat) { elStat.textContent = "Building multi-artboard Brand Identity Kit in Illustrator…"; elStat.style.color = "#3bcdca"; }
+          csInterface.evalScript("dmGenerateBrandKitAI('" + escJSX(finalPlan) + "')", function (res) {
+            if (elStat) {
+              elStat.textContent = (res && res.indexOf("OK:") === 0) ? res.substring(3) : (res || "Brand Identity Kit created!");
+              elStat.style.color = (res && res.indexOf("ERROR:") === 0) ? "#f87171" : "#3bcdca";
+            }
+          });
+        }
+        var need = (plan.mockupMode !== "off") ? bkEnabledCats(plan).filter(function (c) { return !bkMockupCache[c]; }) : [];
+        if (need.length === 0) { doGenerate(plan); return; }
+        if (bkMockupBusy) { if (elStat) elStat.textContent = "Still fetching mockups — please wait a few seconds, then Generate again."; return; }
+        bkMockupBusy = true;
+        if (elStat) { elStat.textContent = "Fetching online mockups for your brand…"; elStat.style.color = "#3bcdca"; }
+        bkFetchAll(need, plan.industry, function (cat, n, total) {
+          if (elStat) elStat.textContent = "Fetching online mockups… (" + n + "/" + total + ")";
+          bkRenderThumbs();
+        }, function () {
+          bkMockupBusy = false;
+          bkRenderThumbs();
+          plan.mockups = bkMockupPaths();
+          doGenerate(plan);
         });
       });
     }
@@ -212,6 +443,10 @@
       });
     }
 
+    bkPlanFn = readPlan;
+    bkWireMockupUI(readPlan, function (t) { if (elStat) elStat.textContent = t; });
+    bkRenderThumbs();
+
     refresh();
   }
 
@@ -220,5 +455,5 @@
     else initBrandKitUI();
   }
 
-  global.BrandKitStudio = { brandPreviewSVG: brandPreviewSVG, rgbToCmykStr: rgbToCmykStr };
+  global.BrandKitStudio = { brandPreviewSVG: brandPreviewSVG, rgbToCmykStr: rgbToCmykStr, mockupCatalog: BK_MOCKUPS, templateZones: BK_TEMPLATE_ZONES };
 })(typeof window !== "undefined" ? window : globalThis);

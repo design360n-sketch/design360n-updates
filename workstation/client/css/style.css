@@ -537,3 +537,8 @@ input[type="color"] {
 .header-right .status-pill {
   max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* Brand Kit Pro — online mockup thumbnails */
+.bk-thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-height: 0; }
+.bk-thumbs img.bk-mock-thumb { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(148,163,184,.35); cursor: pointer; background: #0b1120; }
+.bk-thumbs img.bk-mock-thumb:hover { border-color: #3bcdca; }
