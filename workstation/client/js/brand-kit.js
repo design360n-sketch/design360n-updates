@@ -564,6 +564,7 @@
       var plan = readPlanFn();
       var cats = bkEnabledCats(plan);
       if (plan.mockupMode === "off") { setStatus("Mockups are OFF — vector-only sheets. Switch mode to Auto / Manual to fetch photos."); return; }
+      if (plan.mockupMode === "vector") { setStatus("Vector mode — built-in drawings, no photos to fetch. Generate will draw the mockups."); return; }
       if (cats.length === 0) { setStatus("Tick at least one mockup category first."); return; }
       bkMockupBusy = true;
       btn.disabled = true;
@@ -600,7 +601,7 @@
       var t = el ? String(el.textContent || "").replace(/^v/i, "").trim() : "";
       if (/^\d+\.\d+\.\d+$/.test(t)) return t;
     } catch (e) {}
-    return "17.7.26";
+    return "17.7.27";
   }
   function bkLicenseKeyHead() {
     try {
@@ -905,9 +906,12 @@
         csInterface.evalScript("dmExtractLogoColorsAI()", function (res) {
           if (res && res.indexOf("OK:") === 0) {
             var cols = res.slice(3).split("|").filter(Boolean);
+            /* v17.7.27: extractor now always returns 4 colors
+             * (primary | secondary | accent | dark) — map all four. */
             if (cols[0]) elPrim.value = cols[0];
             if (cols[1]) elSec.value = cols[1];
-            if (cols[2]) elDark.value = cols[2];
+            if (cols[2]) { var elAccEl = document.getElementById("bkAccent"); if (elAccEl) elAccEl.value = cols[2]; }
+            if (cols[3]) elDark.value = cols[3];
             refresh();
             if (elStat) { elStat.textContent = "Extracted " + cols.length + " brand colors from selected logo!"; elStat.style.color = "#3bcdca"; }
           } else {
@@ -958,7 +962,7 @@
          * generation (never reuse the cache — that was the repeat bug),
          * then generate. */
         function afterLogo(finalPlan) {
-          var need = (finalPlan.mockupMode !== "off") ? bkEnabledCats(finalPlan) : [];
+          var need = (finalPlan.mockupMode !== "off" && finalPlan.mockupMode !== "vector") ? bkEnabledCats(finalPlan) : []; /* v17.7.27: vector mode draws its own mockups — no photo fetch */
           if (need.length === 0) { doGenerate(finalPlan); return; }
           if (bkMockupBusy) { if (elStat) elStat.textContent = "Mockup anchi — ektu wait koren, tarpor abar Generate chapen."; return; }
           bkMockupBusy = true;
